@@ -1,0 +1,163 @@
+from django.db import transaction
+from decimal import Decimal
+from .models import Sale, SaleItem
+from stock.models import Product, StockMovement
+
+
+class SaleService:
+    """
+    Business logic for sales operations.
+    """
+    
+    @staticmethod
+    @transaction.atomic
+    def create_sale(tenant, items_data, customer=None, payment_method='cash', 
+                   paid_amount=0, created_by=None, notes=''):
+        """
+        Create a new sale with items and update stock.
+        
+        Args:
+            tenant: Tenant object
+            items_data: List of dicts with {product_id, quantity, unit_price, discount_percent}
+            customer: Customer object or None
+            payment_method: Payment method choice
+            paid_amount: Amount paid by customer
+            created_by: User who created the sale
+            notes: Additional notes
+            
+        Returns:
+            Sale object
+        """
+        # Generate invoice number
+        last_sale = Sale.objects.filter(tenant=tenant).order_by('-created_at').first()
+        if last_sale and last_sale.invoice_number:
+            try:
+                last_number = int(last_sale.invoice_number.split('-')[-1])
+                invoice_number = f"INV-{last_number + 1:06d}"
+            except:
+                invoice_number = f"INV-000001"
+        else:
+            invoice_number = f"INV-000001"
+        
+        # Create sale
+        sale = Sale.objects.create(
+            tenant=tenant,
+            invoice_number=invoice_number,
+            customer=customer,
+            payment_method=payment_method,
+            paid_amount=Decimal(paid_amount),
+            created_by=created_by,
+            notes=notes,
+            total_amount=0,  # Will be calculated
+            subtotal=0,
+            tax_amount=0,
+            discount_amount=0
+        )
+        
+        total_subtotal = Decimal('0')
+        total_tax = Decimal('0')
+        total_discount = Decimal('0')
+        
+        # Create sale items and update stock
+        for item_data in items_data:
+            product = Product.objects.get(
+                id=item_data['product_id'],
+                tenant=tenant
+            )
+            
+            quantity = Decimal(str(item_data['quantity']))
+            unit_price = Decimal(str(item_data.get('unit_price', product.sale_price)))
+            discount_percent = Decimal(str(item_data.get('discount_percent', 0)))
+            tax_rate = Decimal(str(item_data.get('tax_rate', product.tax_rate)))
+            
+            # Create sale item
+            sale_item = SaleItem(
+                tenant=tenant,
+                sale=sale,
+                product=product,
+                quantity=quantity,
+                unit_price=unit_price,
+                discount_percent=discount_percent,
+                tax_rate=tax_rate
+            )
+            sale_item.calculate_totals()
+            sale_item.save()
+            
+            total_subtotal += sale_item.subtotal
+            total_tax += sale_item.tax_amount
+            total_discount += (unit_price * quantity) * (discount_percent / 100)
+            
+            # Update stock if tracking
+            if product.track_inventory:
+                previous_stock = product.current_stock
+                product.current_stock -= quantity
+                product.save()
+                
+                # Create stock movement
+                StockMovement.objects.create(
+                    tenant=tenant,
+                    product=product,
+                    movement_type='sale',
+                    quantity=-quantity,
+                    previous_stock=previous_stock,
+                    new_stock=product.current_stock,
+                    reference=invoice_number,
+                    created_by=created_by
+                )
+        
+        # Update sale totals
+        sale.subtotal = total_subtotal
+        sale.tax_amount = total_tax
+        sale.discount_amount = total_discount
+        sale.total_amount = total_subtotal + total_tax
+        
+        # Calculate change
+        if Decimal(paid_amount) >= sale.total_amount:
+            sale.change_amount = Decimal(paid_amount) - sale.total_amount
+        
+        # Update customer balance if on credit
+        if payment_method == 'credit' and customer:
+            customer.current_balance += sale.outstanding_balance
+            customer.save()
+        
+        sale.save()
+        
+        return sale
+    
+    @staticmethod
+    @transaction.atomic
+    def cancel_sale(sale, cancelled_by=None):
+        """
+        Cancel a sale and restore stock.
+        """
+        if sale.status == 'cancelled':
+            raise ValueError("Sale is already cancelled")
+        
+        # Restore stock
+        for item in sale.items.all():
+            if item.product.track_inventory:
+                previous_stock = item.product.current_stock
+                item.product.current_stock += item.quantity
+                item.product.save()
+                
+                # Create stock movement
+                StockMovement.objects.create(
+                    tenant=sale.tenant,
+                    product=item.product,
+                    movement_type='return',
+                    quantity=item.quantity,
+                    previous_stock=previous_stock,
+                    new_stock=item.product.current_stock,
+                    reference=f"CANCEL-{sale.invoice_number}",
+                    created_by=cancelled_by
+                )
+        
+        # Update customer balance if was on credit
+        if sale.customer and sale.payment_method == 'credit':
+            sale.customer.current_balance -= sale.outstanding_balance
+            sale.customer.save()
+        
+        sale.status = 'cancelled'
+        sale.save()
+        
+        return sale
