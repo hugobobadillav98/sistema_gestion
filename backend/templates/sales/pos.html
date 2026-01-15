@@ -1,0 +1,435 @@
+{% extends 'base/base.html' %}
+
+{% block title %}POS - Punto de Venta{% endblock %}
+
+{% block extra_css %}
+<style>
+    .product-card {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .cart-item {
+        border-bottom: 1px solid #dee2e6;
+        padding: 10px 0;
+    }
+    .product-stock-low {
+        color: #dc3545;
+    }
+    .product-stock-ok {
+        color: #28a745;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="posApp()" x-init="init()">
+    <div class="row">
+        <div class="col-12 mb-3">
+            <h2><i class="bi bi-cart"></i> Punto de Venta</h2>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Products Section -->
+        <div class="col-lg-8">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <!-- Search and Filters -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                placeholder="Buscar producto por nombre o código..."
+                                x-model="searchQuery"
+                                @input="filterProducts()"
+                            >
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select" x-model="selectedCategory" @change="filterProducts()">
+                                <option value="">Todas las categorías</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-secondary w-100" @click="clearFilters()">
+                                <i class="bi bi-x-circle"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Products Grid -->
+                    <div class="row g-2" style="max-height: 600px; overflow-y: auto;">
+                        <template x-for="product in filteredProducts" :key="product.id">
+                            <div class="col-md-4 col-sm-6">
+                                <div class="card product-card h-100" @click="addToCart(product)">
+                                    <div class="card-body">
+                                        <h6 class="card-title" x-text="product.name"></h6>
+                                        <p class="card-text mb-1">
+                                            <small class="text-muted" x-text="product.code"></small>
+                                        </p>
+                                        <p class="card-text mb-1">
+                                            <strong>₲ <span x-text="formatNumber(product.sale_price)"></span></strong>
+                                        </p>
+                                        <p class="card-text mb-0">
+                                            <small>
+                                                Stock: 
+                                                <span :class="product.current_stock <= product.minimum_stock ? 'product-stock-low' : 'product-stock-ok'">
+                                                    <span x-text="product.current_stock"></span>
+                                                </span>
+                                            </small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cart Section -->
+        <div class="col-lg-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-basket"></i> Carrito</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <template x-if="cart.length === 0">
+                        <p class="text-muted text-center">Carrito vacío</p>
+                    </template>
+                    
+                    <template x-for="(item, index) in cart" :key="index">
+                        <div class="cart-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1" x-text="item.product.name"></h6>
+                                    <small class="text-muted" x-text="item.product.code"></small>
+                                </div>
+                                <button 
+                                    class="btn btn-sm btn-danger" 
+                                    @click="removeFromCart(index)"
+                                    type="button"
+                                >
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-4">
+                                    <label class="form-label small">Cant.</label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control form-control-sm" 
+                                        x-model.number="item.quantity"
+                                        @input="updateTotals()"
+                                        min="1"
+                                        :max="item.product.current_stock"
+                                    >
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Precio</label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control form-control-sm" 
+                                        x-model.number="item.unit_price"
+                                        @input="updateTotals()"
+                                        min="0"
+                                    >
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Desc%</label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control form-control-sm" 
+                                        x-model.number="item.discount"
+                                        @input="updateTotals()"
+                                        min="0"
+                                        max="100"
+                                    >
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <strong>Subtotal: ₲ <span x-text="formatNumber(item.subtotal)"></span></strong>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <div class="card-body border-top">
+                    <!-- Customer Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">Cliente (opcional)</label>
+                        <select class="form-select" x-model="selectedCustomer">
+                            <option value="">Cliente General</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Payment Method -->
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago</label>
+                        <select class="form-select" x-model="paymentMethod">
+                            <option value="cash">Efectivo</option>
+                            <option value="card">Tarjeta</option>
+                            <option value="transfer">Transferencia</option>
+                            <option value="credit">Fiado/Crédito</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Totals -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Subtotal:</span>
+                            <strong>₲ <span x-text="formatNumber(subtotal)"></span></strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>IVA (10%):</span>
+                            <strong>₲ <span x-text="formatNumber(taxAmount)"></span></strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <h5>Total:</h5>
+                            <h5>₲ <span x-text="formatNumber(total)"></span></h5>
+                        </div>
+                    </div>
+                    
+                    <!-- Paid Amount (for cash) -->
+                    <div class="mb-3" x-show="paymentMethod === 'cash'">
+                        <label class="form-label">Monto Pagado</label>
+                        <input 
+                            type="number" 
+                            class="form-control" 
+                            x-model.number="paidAmount"
+                            @input="calculateChange()"
+                            placeholder="0"
+                        >
+                        <template x-if="change > 0">
+                            <div class="alert alert-info mt-2 mb-0">
+                                Vuelto: ₲ <strong x-text="formatNumber(change)"></strong>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="d-grid gap-2">
+                        <button 
+                            class="btn btn-success btn-lg" 
+                            @click="processSale()"
+                            :disabled="cart.length === 0"
+                        >
+                            <i class="bi bi-check-circle"></i> Procesar Venta
+                        </button>
+                        <button 
+                            class="btn btn-outline-secondary" 
+                            @click="clearCart()"
+                            :disabled="cart.length === 0"
+                        >
+                            <i class="bi bi-x-circle"></i> Limpiar Carrito
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function posApp() {
+    return {
+        products: [],
+        filteredProducts: [],
+        cart: [],
+        searchQuery: '',
+        selectedCategory: '',
+        selectedCustomer: '',
+        paymentMethod: 'cash',
+        paidAmount: 0,
+        subtotal: 0,
+        taxAmount: 0,
+        total: 0,
+        change: 0,
+        
+        init() {
+            this.products = [
+                {% for product in products %}
+                {
+                    id: '{{ product.id }}',
+                    code: '{{ product.code }}',
+                    name: '{{ product.name }}',
+                    sale_price: {{ product.sale_price }},
+                    current_stock: {{ product.current_stock }},
+                    minimum_stock: {{ product.minimum_stock }},
+                    category_id: {% if product.category %}'{{ product.category.id }}'{% else %}null{% endif %}
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ];
+            this.filteredProducts = this.products;
+        },
+        
+        filterProducts() {
+            this.filteredProducts = this.products.filter(p => {
+                const matchesSearch = !this.searchQuery || 
+                    p.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                    p.code.toLowerCase().includes(this.searchQuery.toLowerCase());
+                    
+                const matchesCategory = !this.selectedCategory || 
+                    p.category_id === this.selectedCategory;
+                    
+                return matchesSearch && matchesCategory;
+            });
+        },
+        
+        clearFilters() {
+            this.searchQuery = '';
+            this.selectedCategory = '';
+            this.filterProducts();
+        },
+        
+        addToCart(product) {
+            const existingItem = this.cart.find(item => item.product.id === product.id);
+            
+            if (existingItem) {
+                if (existingItem.quantity < product.current_stock) {
+                    existingItem.quantity++;
+                } else {
+                    alert('Stock insuficiente');
+                    return;
+                }
+            } else {
+                this.cart.push({
+                    product: product,
+                    quantity: 1,
+                    unit_price: product.sale_price,
+                    discount: 0,
+                    subtotal: product.sale_price
+                });
+            }
+            
+            this.updateTotals();
+        },
+        
+        removeFromCart(index) {
+            this.cart.splice(index, 1);
+            this.updateTotals();
+        },
+        
+        updateTotals() {
+            this.subtotal = 0;
+            
+            this.cart.forEach(item => {
+                const discountAmount = (item.unit_price * item.quantity) * (item.discount / 100);
+                item.subtotal = (item.unit_price * item.quantity) - discountAmount;
+                this.subtotal += item.subtotal;
+            });
+            
+            this.taxAmount = this.subtotal * 0.10;
+            this.total = this.subtotal + this.taxAmount;
+            
+            if (this.paymentMethod === 'cash') {
+                this.calculateChange();
+            }
+        },
+        
+        calculateChange() {
+            if (this.paidAmount >= this.total) {
+                this.change = this.paidAmount - this.total;
+            } else {
+                this.change = 0;
+            }
+        },
+        
+        clearCart() {
+            if (confirm('¿Limpiar el carrito?')) {
+                this.cart = [];
+                this.updateTotals();
+            }
+        },
+        
+        async processSale() {
+            if (this.cart.length === 0) {
+                alert('El carrito está vacío');
+                return;
+            }
+            
+            if (this.paymentMethod === 'cash' && this.paidAmount < this.total) {
+                alert('El monto pagado es insuficiente');
+                return;
+            }
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "create_sale" %}';
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = '{{ csrf_token }}';
+            form.appendChild(csrfInput);
+            
+            if (this.selectedCustomer) {
+                const customerInput = document.createElement('input');
+                customerInput.type = 'hidden';
+                customerInput.name = 'customer_id';
+                customerInput.value = this.selectedCustomer;
+                form.appendChild(customerInput);
+            }
+            
+            const paymentInput = document.createElement('input');
+            paymentInput.type = 'hidden';
+            paymentInput.name = 'payment_method';
+            paymentInput.value = this.paymentMethod;
+            form.appendChild(paymentInput);
+            
+            const paidInput = document.createElement('input');
+            paidInput.type = 'hidden';
+            paidInput.name = 'paid_amount';
+            paidInput.value = this.paymentMethod === 'cash' ? this.paidAmount : this.total;
+            form.appendChild(paidInput);
+            
+            this.cart.forEach((item) => {
+                const productInput = document.createElement('input');
+                productInput.type = 'hidden';
+                productInput.name = 'product_id[]';
+                productInput.value = item.product.id;
+                form.appendChild(productInput);
+                
+                const qtyInput = document.createElement('input');
+                qtyInput.type = 'hidden';
+                qtyInput.name = 'quantity[]';
+                qtyInput.value = item.quantity;
+                form.appendChild(qtyInput);
+                
+                const priceInput = document.createElement('input');
+                priceInput.type = 'hidden';
+                priceInput.name = 'unit_price[]';
+                priceInput.value = item.unit_price;
+                form.appendChild(priceInput);
+                
+                const discInput = document.createElement('input');
+                discInput.type = 'hidden';
+                discInput.name = 'discount[]';
+                discInput.value = item.discount;
+                form.appendChild(discInput);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+        },
+        
+        formatNumber(num) {
+            return new Intl.NumberFormat('es-PY').format(Math.round(num));
+        }
+    }
+}
+</script>
+{% endblock %}

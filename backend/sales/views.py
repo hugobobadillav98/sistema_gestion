@@ -59,7 +59,7 @@ def pos_view(request):
         'search': search,
     }
     
-    return render(request, 'ventas/pos.html', context)
+    return render(request, 'sales/pos.html', context)
 
 
 @login_required
@@ -140,7 +140,7 @@ def sale_detail_view(request, sale_id):
         'sale': sale,
     }
     
-    return render(request, 'ventas/sale_detail.html', context)
+    return render(request, 'sales/sale_detail.html', context)
 
 
 @login_required
@@ -186,7 +186,7 @@ def sales_list_view(request):
         'totals': totals,
     }
     
-    return render(request, 'ventas/sales_list.html', context)
+    return render(request, 'sales/sales_list.html', context)
 
 
 @login_required
