@@ -45,7 +45,6 @@ def dashboard_view(request):
     low_stock = Product.objects.filter(
         tenant=request.tenant,
         is_active=True,
-        track_inventory=True,
         current_stock__lte=F('minimum_stock')  # <- Usar F() correctamente
     ).count()
 

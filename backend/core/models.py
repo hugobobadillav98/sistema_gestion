@@ -97,10 +97,6 @@ class TenantUser(models.Model):
 
 
 class TenantAwareModel(models.Model):
-    """
-    Abstract base model for all tenant-aware models.
-    Automatically filters by tenant.
-    """
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     
     class Meta:

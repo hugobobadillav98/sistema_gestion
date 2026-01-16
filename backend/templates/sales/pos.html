@@ -2,6 +2,10 @@
 
 {% block title %}POS - Punto de Venta{% endblock %}
 
+{% block page_title %}Punto de Venta{% endblock %}
+
+{% block mobile_title %}POS{% endblock %}
+
 {% block extra_css %}
 <style>
     .product-card {
@@ -27,12 +31,6 @@
 
 {% block content %}
 <div x-data="posApp()" x-init="init()">
-    <div class="row">
-        <div class="col-12 mb-3">
-            <h2><i class="bi bi-cart"></i> Punto de Venta</h2>
-        </div>
-    </div>
-    
     <div class="row">
         <!-- Products Section -->
         <div class="col-lg-8">
@@ -212,12 +210,12 @@
                             placeholder="0"
                         >
                         <template x-if="change > 0">
-                            <div class="alert alert-info mt-2 mb-0">
-                                Vuelto: ₲ <strong x-text="formatNumber(change)"></strong>
+                            <div class="alert alert-success mt-2 mb-0">
+                                <strong>Vuelto: ₲ <span x-text="formatNumber(change)"></span></strong>
                             </div>
                         </template>
                     </div>
-                    
+                                        
                     <!-- Actions -->
                     <div class="d-grid gap-2">
                         <button 
@@ -263,17 +261,19 @@ function posApp() {
             this.products = [
                 {% for product in products %}
                 {
-                    id: '{{ product.id }}',
-                    code: '{{ product.code }}',
-                    name: '{{ product.name }}',
-                    sale_price: {{ product.sale_price }},
-                    current_stock: {{ product.current_stock }},
-                    minimum_stock: {{ product.minimum_stock }},
-                    category_id: {% if product.category %}'{{ product.category.id }}'{% else %}null{% endif %}
+                    'id': '{{ product.id }}',
+                    'code': '{{ product.code|escapejs }}',
+                    'name': '{{ product.name|escapejs }}',
+                    'sale_price': {{ product.sale_price|floatformat:0 }},
+                    'current_stock': {{ product.current_stock|floatformat:0 }},
+                    'minimum_stock': {{ product.minimum_stock|floatformat:0 }},
+                    'category_id': {% if product.category %}'{{ product.category.id }}'{% else %}null{% endif %},
+                    'tax_type': '{{ product.tax_type }}'
                 }{% if not forloop.last %},{% endif %}
                 {% endfor %}
             ];
-            this.filteredProducts = this.products;
+            this.filteredProducts = [...this.products];
+            console.log('Products loaded:', this.products.length);
         },
         
         filterProducts() {
@@ -297,7 +297,7 @@ function posApp() {
         
         addToCart(product) {
             const existingItem = this.cart.find(item => item.product.id === product.id);
-            
+    
             if (existingItem) {
                 if (existingItem.quantity < product.current_stock) {
                     existingItem.quantity++;
@@ -311,7 +311,8 @@ function posApp() {
                     quantity: 1,
                     unit_price: product.sale_price,
                     discount: 0,
-                    subtotal: product.sale_price
+                    subtotal: product.sale_price,
+                    tax_type: product.tax_type
                 });
             }
             
@@ -325,16 +326,31 @@ function posApp() {
         
         updateTotals() {
             this.subtotal = 0;
-            
+
             this.cart.forEach(item => {
                 const discountAmount = (item.unit_price * item.quantity) * (item.discount / 100);
                 item.subtotal = (item.unit_price * item.quantity) - discountAmount;
                 this.subtotal += item.subtotal;
             });
+
+            let totalTax = 0;
+            this.cart.forEach(item => {
+                const itemTotal = item.subtotal;
+                const taxType = item.tax_type || '10';
+                
+                let taxRate = 0;
+                if (taxType === '10') taxRate = 0.10;
+                else if (taxType === '5') taxRate = 0.05;
+                else if (taxType === 'EXENTA') taxRate = 0;
+                
+                const basePrice = itemTotal / (1 + taxRate);
+                const itemTax = itemTotal - basePrice;
+                totalTax += itemTax;
+            });
             
-            this.taxAmount = this.subtotal * 0.10;
-            this.total = this.subtotal + this.taxAmount;
-            
+            this.total = this.subtotal;
+            this.taxAmount = Math.round(totalTax);
+
             if (this.paymentMethod === 'cash') {
                 this.calculateChange();
             }
@@ -355,7 +371,7 @@ function posApp() {
             }
         },
         
-        async processSale() {
+        processSale() {
             if (this.cart.length === 0) {
                 alert('El carrito está vacío');
                 return;
@@ -368,7 +384,7 @@ function posApp() {
             
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = '{% url "create_sale" %}';
+            form.action = '{% url "sales:create_sale" %}';
             
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
@@ -427,6 +443,7 @@ function posApp() {
         },
         
         formatNumber(num) {
+            if (!num) return '0';
             return new Intl.NumberFormat('es-PY').format(Math.round(num));
         }
     }
