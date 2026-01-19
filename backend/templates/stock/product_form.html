@@ -1,0 +1,98 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ is_edit|yesno:"Editar,Crear" }} Producto{% endblock %}
+{% block page_title %}{{ is_edit|yesno:"Editar,Nuevo" }} Producto{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ is_edit|yesno:"Editar,Crear Nuevo" }} Producto</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Código <span class="text-danger">*</span></label>
+                            <input type="text" name="code" class="form-control" value="{{ product.code }}" required>
+                        </div>
+                        
+                        <div class="col-md-8">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" value="{{ product.name }}" required>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Descripción</label>
+                            <textarea name="description" class="form-control" rows="2">{{ product.description }}</textarea>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Categoría</label>
+                            <select name="category" class="form-select">
+                                <option value="">Sin categoría</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if product.category_id == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo de IVA</label>
+                            <select name="tax_type" class="form-select">
+                                <option value="EXENTA" {% if product.tax_type == "EXENTA" %}selected{% endif %}>Exenta (0%)</option>
+                                <option value="5" {% if product.tax_type == "5" %}selected{% endif %}>Gravada 5%</option>
+                                <option value="10" {% if product.tax_type == "10" or not product.tax_type %}selected{% endif %}>Gravada 10%</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Precio Compra (₲)</label>
+                            <input type="number" name="purchase_price" class="form-control" value="{{ product.purchase_price|floatformat:0|default:0 }}" min="0">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Precio Venta (₲) <span class="text-danger">*</span></label>
+                            <input type="number" name="sale_price" class="form-control" value="{{ product.sale_price|floatformat:0|default:0 }}" required min="0">
+                            <small class="text-muted">Precio con IVA incluido</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Stock Actual</label>
+                            <input type="number" name="current_stock" class="form-control" value="{{ product.current_stock|default:0 }}" min="0">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Stock Mínimo</label>
+                            <input type="number" name="minimum_stock" class="form-control" value="{{ product.minimum_stock|default:0 }}" min="0">
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="isActive" {% if not is_edit or product.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="isActive">
+                                    Producto activo
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Guardar
+                        </button>
+                        <a href="{% url 'stock:product_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

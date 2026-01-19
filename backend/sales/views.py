@@ -13,7 +13,7 @@ from customers.models import Customer
 
 
 @login_required
-def pos_view(request):
+def pos(request):
     """
     Point of Sale interface.
     """
@@ -21,10 +21,11 @@ def pos_view(request):
         messages.error(request, "No tenant assigned")
         return redirect('admin:index')
     
-    # Get active products
+    # Get active products with stock
     products = Product.objects.filter(
         tenant=request.tenant,
-        is_active=True
+        is_active=True,
+        current_stock__gt=0  # Solo productos con stock
     ).select_related('category').order_by('name')
     
     # Get categories for filtering
@@ -37,7 +38,7 @@ def pos_view(request):
     customers = Customer.objects.filter(
         tenant=request.tenant,
         is_active=True
-    ).order_by('name')[:50]  # Limit for performance
+    ).order_by('name')[:50]
     
     # Search filter
     search = request.GET.get('search', '')
@@ -52,34 +53,67 @@ def pos_view(request):
     if category_id:
         products = products.filter(category_id=category_id)
     
+    # Tasas de cambio (hardcoded por ahora)
+    exchange_rates = {
+        'PYG': 1,
+        'USD': 7300,
+        'BRL': 1450
+    }
+    
     context = {
-        'products': products[:50],  # Limit for performance
+        'products': products,
         'categories': categories,
         'customers': customers,
         'search': search,
+        'exchange_rates': exchange_rates,
     }
     
     return render(request, 'sales/pos.html', context)
 
 
+
 @login_required
-def create_sale_view(request):
+def create_sale(request):
     """
     Process sale creation from POS.
     """
     if request.method != 'POST':
-        return redirect('pos')
+        return redirect('sales:pos')
     
     if not request.tenant:
         messages.error(request, "No tenant assigned")
         return redirect('admin:index')
     
     try:
-        # Get form data
+        # ========== DEBUG ==========
+        print("=" * 50)
+        print("POST DATA RECIBIDO:")
+        for key, value in request.POST.items():
+            print(f"{key}: {value}")
+        print("=" * 50)
+        # ===========================
+        
+        # Get multi-currency data
         customer_id = request.POST.get('customer_id')
         payment_method = request.POST.get('payment_method', 'cash')
-        paid_amount = Decimal(request.POST.get('paid_amount', '0'))
+        currency_paid = request.POST.get('currency_paid', 'PYG')
+        paid_amount_original = Decimal(request.POST.get('paid_amount_original', '0'))
+        exchange_rate_usd = Decimal(request.POST.get('exchange_rate_usd', '7300'))
+        exchange_rate_brl = Decimal(request.POST.get('exchange_rate_brl', '1450'))
+        pix_reference = request.POST.get('pix_reference', '')
         notes = request.POST.get('notes', '')
+        
+        # Calculate paid amount in PYG
+        if currency_paid == 'PYG':
+            paid_amount = paid_amount_original
+        elif currency_paid == 'USD':
+            paid_amount = paid_amount_original * exchange_rate_usd
+        elif currency_paid == 'BRL':
+            paid_amount = paid_amount_original * exchange_rate_brl
+        else:
+            paid_amount = paid_amount_original
+        
+        print(f"Currency: {currency_paid}, Paid Original: {paid_amount_original}, Paid PYG: {paid_amount}")
         
         # Get customer if provided
         customer = None
@@ -93,18 +127,22 @@ def create_sale_view(request):
         unit_prices = request.POST.getlist('unit_price[]')
         discounts = request.POST.getlist('discount[]')
         
+        print(f"Products: {len(product_ids)}, Quantities: {quantities}")
+        
         for i in range(len(product_ids)):
             if product_ids[i] and quantities[i]:
                 items_data.append({
                     'product_id': product_ids[i],
-                    'quantity': quantities[i],
-                    'unit_price': unit_prices[i] if i < len(unit_prices) else None,
-                    'discount_percent': discounts[i] if i < len(discounts) else 0,
+                    'quantity': int(quantities[i]),
+                    'unit_price': Decimal(unit_prices[i]) if i < len(unit_prices) else None,
+                    'discount_percent': Decimal(discounts[i]) if i < len(discounts) else 0,
                 })
         
         if not items_data:
             messages.error(request, "No items in sale")
-            return redirect('pos')
+            return redirect('sales:pos')
+        
+        print(f"Items data: {items_data}")
         
         # Create sale using service
         sale = SaleService.create_sale(
@@ -112,27 +150,37 @@ def create_sale_view(request):
             items_data=items_data,
             customer=customer,
             payment_method=payment_method,
-            paid_amount=paid_amount,
+            paid_amount=int(paid_amount),
             created_by=request.user,
-            notes=notes
+            notes=notes,
+            currency_paid=currency_paid,
+            paid_amount_original=paid_amount_original,
+            exchange_rate_usd=exchange_rate_usd,
+            exchange_rate_brl=exchange_rate_brl,
+            pix_reference=pix_reference
         )
         
-        messages.success(request, f"Sale {sale.invoice_number} created successfully!")
-        return redirect('sale_detail', sale_id=sale.id)
+        print(f"✅ Sale created: {sale.id} - {sale.invoice_number}")
+        
+        messages.success(request, f"Venta {sale.invoice_number} registrada exitosamente!")
+        return redirect('sales:sale_detail', pk=sale.pk)
         
     except Exception as e:
-        messages.error(request, f"Error creating sale: {str(e)}")
-        return redirect('pos')
+        print(f"❌ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        messages.error(request, f"Error al crear venta: {str(e)}")
+        return redirect('sales:pos')
 
 
 @login_required
-def sale_detail_view(request, sale_id):
+def sale_detail(request, pk):
     """
     View sale details and print receipt.
     """
     sale = get_object_or_404(
         Sale.objects.select_related('customer', 'created_by').prefetch_related('items__product'),
-        id=sale_id,
+        id=pk,  # ← Cambiar sale_id por pk
         tenant=request.tenant
     )
     
@@ -144,7 +192,7 @@ def sale_detail_view(request, sale_id):
 
 
 @login_required
-def sales_list_view(request):
+def sales_list(request):
     """
     List all sales with filters.
     """
@@ -195,9 +243,9 @@ def cancel_sale_view(request, sale_id):
     Cancel a sale.
     """
     if request.method != 'POST':
-        return redirect('sales_list')
+        return redirect('sales:sales_list')  # ← CAMBIAR: agregar namespace
     
-    sale = get_object_or_404(Sale, id=sale_id, tenant=request.tenant)
+    sale = get_object_or_404(Sale, id=pk, tenant=request.tenant)  # ← CAMBIAR: sale_id → pk
     
     try:
         SaleService.cancel_sale(sale, cancelled_by=request.user)
@@ -205,4 +253,4 @@ def cancel_sale_view(request, sale_id):
     except Exception as e:
         messages.error(request, f"Error cancelling sale: {str(e)}")
     
-    return redirect('sale_detail', sale_id=sale.id)
+    return redirect('sales:sale_detail', pk=pk)  # ← CAMBIAR: sale_id=sale.id → pk=pk

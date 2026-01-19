@@ -26,11 +26,18 @@
     .product-stock-ok {
         color: #28a745;
     }
+    .currency-btn {
+        font-size: 0.85rem;
+        padding: 0.5rem;
+    }
+    .currency-btn.active {
+        font-weight: bold;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div x-data="posApp()" x-init="init()">
+<div x-data="posData()">
     <div class="row">
         <!-- Products Section -->
         <div class="col-lg-8">
@@ -72,9 +79,21 @@
                                         <p class="card-text mb-1">
                                             <small class="text-muted" x-text="product.code"></small>
                                         </p>
+                                        
+                                        <!-- Precio principal en Guaraníes -->
                                         <p class="card-text mb-1">
-                                            <strong>₲ <span x-text="formatNumber(product.sale_price)"></span></strong>
+                                            <strong class="text-success">₲ <span x-text="formatNumber(product.sale_price)"></span></strong>
                                         </p>
+                                        
+                                        <!-- Precios equivalentes en otras monedas -->
+                                        <p class="card-text mb-1">
+                                            <small class="text-muted">
+                                                $ <span x-text="(product.sale_price / exchangeRates.USD).toFixed(2)"></span> USD
+                                                |
+                                                R$ <span x-text="(product.sale_price / exchangeRates.BRL).toFixed(2)"></span>
+                                            </small>
+                                        </p>
+                                        
                                         <p class="card-text mb-0">
                                             <small>
                                                 Stock: 
@@ -95,7 +114,7 @@
         <!-- Cart Section -->
         <div class="col-lg-4">
             <div class="card sticky-top" style="top: 20px;">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-success text-white">
                     <h5 class="mb-0"><i class="bi bi-basket"></i> Carrito</h5>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
@@ -138,6 +157,7 @@
                                         x-model.number="item.unit_price"
                                         @input="updateTotals()"
                                         min="0"
+                                        disabled
                                     >
                                 </div>
                                 <div class="col-4">
@@ -174,12 +194,34 @@
                     <!-- Payment Method -->
                     <div class="mb-3">
                         <label class="form-label">Método de Pago</label>
-                        <select class="form-select" x-model="paymentMethod">
+                        <select class="form-select" x-model="paymentMethod" @change="updatePaymentUI()">
                             <option value="cash">Efectivo</option>
-                            <option value="card">Tarjeta</option>
-                            <option value="transfer">Transferencia</option>
+                            <option value="card">Tarjeta Débito/Crédito</option>
+                            <option value="pix">PIX (Brasil)</option>
+                            <option value="transfer">Transferencia Bancaria</option>
                             <option value="credit">Fiado/Crédito</option>
                         </select>
+                    </div>
+                    
+                    <!-- Currency Selector (solo para efectivo y PIX) -->
+                    <div class="mb-3" x-show="paymentMethod === 'cash' || paymentMethod === 'pix'">
+                        <label class="form-label">Moneda de Pago</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="currency" id="curr-pyg" value="PYG" x-model="currencyPaid" @change="updateTotals()">
+                            <label class="btn btn-outline-success currency-btn" for="curr-pyg">₲ Guaraníes</label>
+                            
+                            <input type="radio" class="btn-check" name="currency" id="curr-usd" value="USD" x-model="currencyPaid" @change="updateTotals()">
+                            <label class="btn btn-outline-primary currency-btn" for="curr-usd">$ Dólares</label>
+                            
+                            <input type="radio" class="btn-check" name="currency" id="curr-brl" value="BRL" x-model="currencyPaid" @change="updateTotals()">
+                            <label class="btn btn-outline-info currency-btn" for="curr-brl">R$ Reales</label>
+                        </div>
+                    </div>
+                    
+                    <!-- PIX Reference -->
+                    <div class="mb-3" x-show="paymentMethod === 'pix'">
+                        <label class="form-label">ID Transacción PIX (opcional)</label>
+                        <input type="text" class="form-control" x-model="pixReference" placeholder="E1234567890...">
                     </div>
                     
                     <!-- Totals -->
@@ -188,40 +230,70 @@
                             <span>Subtotal:</span>
                             <strong>₲ <span x-text="formatNumber(subtotal)"></span></strong>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span>IVA (10%):</span>
+                        
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>IVA:</span>
                             <strong>₲ <span x-text="formatNumber(taxAmount)"></span></strong>
                         </div>
+                        
                         <hr>
-                        <div class="d-flex justify-content-between">
-                            <h5>Total:</h5>
-                            <h5>₲ <span x-text="formatNumber(total)"></span></h5>
+                        
+                        <div class="d-flex justify-content-between mb-2">
+                            <h5>Total (PYG):</h5>
+                            <h5 class="text-success">₲ <span x-text="formatNumber(total)"></span></h5>
+                        </div>
+                        
+                        <!-- Total en moneda seleccionada -->
+                        <div class="alert alert-info mb-0" x-show="currencyPaid !== 'PYG' && (paymentMethod === 'cash' || paymentMethod === 'pix')">
+                            <div class="d-flex justify-content-between">
+                                <strong>Total en <span x-text="currencyPaid"></span>:</strong>
+                                <strong>
+                                    <span x-text="getCurrencySymbol(currencyPaid)"></span>
+                                    <span x-text="getConvertedTotal().toFixed(2)"></span>
+                                </strong>
+                            </div>
+                            <small class="text-muted">
+                                Tasa: 1 <span x-text="currencyPaid"></span> = ₲ <span x-text="formatNumber(exchangeRates[currencyPaid])"></span>
+                            </small>
                         </div>
                     </div>
                     
-                    <!-- Paid Amount (for cash) -->
-                    <div class="mb-3" x-show="paymentMethod === 'cash'">
-                        <label class="form-label">Monto Pagado</label>
+                    <!-- Paid Amount (para efectivo y PIX) -->
+                    <div class="mb-3" x-show="paymentMethod === 'cash' || paymentMethod === 'pix'">
+                        <label class="form-label">
+                            Monto Recibido (<span x-text="getCurrencySymbol(currencyPaid)"></span>)
+                        </label>
                         <input 
                             type="number" 
                             class="form-control" 
                             x-model.number="paidAmount"
                             @input="calculateChange()"
-                            placeholder="0"
+                            placeholder="0.00"
+                            step="0.01"
                         >
                         <template x-if="change > 0">
                             <div class="alert alert-success mt-2 mb-0">
-                                <strong>Vuelto: ₲ <span x-text="formatNumber(change)"></span></strong>
+                                <strong>Vuelto: <span x-text="getCurrencySymbol(currencyPaid)"></span> <span x-text="formatDecimal(change)"></span></strong>
+                                <template x-if="currencyPaid !== 'PYG'">
+                                    <div>
+                                        <small>(₲ <span x-text="formatNumber(changePYG)"></span>)</small>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="paidAmount > 0 && paidAmount < getConvertedTotal()">
+                            <div class="alert alert-danger mt-2 mb-0">
+                                <small>Falta: <span x-text="getCurrencySymbol(currencyPaid)"></span> <span x-text="formatDecimal(getConvertedTotal() - paidAmount)"></span></small>
                             </div>
                         </template>
                     </div>
-                                        
+                    
                     <!-- Actions -->
                     <div class="d-grid gap-2">
                         <button 
                             class="btn btn-success btn-lg" 
                             @click="processSale()"
-                            :disabled="cart.length === 0"
+                            :disabled="cart.length === 0 || !canProcessSale()"
                         >
                             <i class="bi bi-check-circle"></i> Procesar Venta
                         </button>
@@ -242,38 +314,77 @@
 
 {% block extra_js %}
 <script>
-function posApp() {
+function posData() {
     return {
-        products: [],
+        // Products data
+        products: [
+            {% for product in products %}
+            {
+                id: '{{ product.id }}',
+                code: '{{ product.code|escapejs }}',
+                name: '{{ product.name|escapejs }}',
+                sale_price: {{ product.sale_price|floatformat:0 }},
+                current_stock: {{ product.current_stock|floatformat:0 }},
+                minimum_stock: {{ product.minimum_stock|floatformat:0 }},
+                category_id: {% if product.category %}'{{ product.category.id }}'{% else %}null{% endif %},
+                tax_type: '{{ product.tax_type }}'
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
         filteredProducts: [],
+        
+        // Cart
         cart: [],
+        
+        // Filters
         searchQuery: '',
         selectedCategory: '',
+        
+        // Customer & Payment
         selectedCustomer: '',
         paymentMethod: 'cash',
+        currencyPaid: 'PYG',
         paidAmount: 0,
+        pixReference: '',
+        
+        // Totals
         subtotal: 0,
         taxAmount: 0,
         total: 0,
         change: 0,
+        changePYG: 0,
+        
+        // Exchange rates
+        exchangeRates: {
+            PYG: 1,
+            USD: {{ exchange_rates.USD|default:7300 }},
+            BRL: {{ exchange_rates.BRL|default:1450 }}
+        },
         
         init() {
-            this.products = [
-                {% for product in products %}
-                {
-                    'id': '{{ product.id }}',
-                    'code': '{{ product.code|escapejs }}',
-                    'name': '{{ product.name|escapejs }}',
-                    'sale_price': {{ product.sale_price|floatformat:0 }},
-                    'current_stock': {{ product.current_stock|floatformat:0 }},
-                    'minimum_stock': {{ product.minimum_stock|floatformat:0 }},
-                    'category_id': {% if product.category %}'{{ product.category.id }}'{% else %}null{% endif %},
-                    'tax_type': '{{ product.tax_type }}'
-                }{% if not forloop.last %},{% endif %}
-                {% endfor %}
-            ];
             this.filteredProducts = [...this.products];
-            console.log('Products loaded:', this.products.length);
+            console.log('✅ POS cargado:', this.products.length, 'productos');
+            console.log('💱 Tasas:', this.exchangeRates);
+        },
+        
+        formatNumber(num) {
+            if (!num) return '0';
+            return new Intl.NumberFormat('es-PY').format(Math.round(num));
+        },
+        
+        formatDecimal(num) {
+            if (!num) return '0.00';
+            return num.toFixed(2);
+        },
+        
+        getCurrencySymbol(currency) {
+            const symbols = { PYG: '₲', USD: '$', BRL: 'R$' };
+            return symbols[currency] || '₲';
+        },
+        
+        getConvertedTotal() {
+            if (this.currencyPaid === 'PYG') return this.total;
+            return this.total / this.exchangeRates[this.currencyPaid];
         },
         
         filterProducts() {
@@ -297,7 +408,7 @@ function posApp() {
         
         addToCart(product) {
             const existingItem = this.cart.find(item => item.product.id === product.id);
-    
+            
             if (existingItem) {
                 if (existingItem.quantity < product.current_stock) {
                     existingItem.quantity++;
@@ -326,13 +437,13 @@ function posApp() {
         
         updateTotals() {
             this.subtotal = 0;
-
+            
             this.cart.forEach(item => {
                 const discountAmount = (item.unit_price * item.quantity) * (item.discount / 100);
                 item.subtotal = (item.unit_price * item.quantity) - discountAmount;
                 this.subtotal += item.subtotal;
             });
-
+            
             let totalTax = 0;
             this.cart.forEach(item => {
                 const itemTotal = item.subtotal;
@@ -341,44 +452,65 @@ function posApp() {
                 let taxRate = 0;
                 if (taxType === '10') taxRate = 0.10;
                 else if (taxType === '5') taxRate = 0.05;
-                else if (taxType === 'EXENTA') taxRate = 0;
                 
-                const basePrice = itemTotal / (1 + taxRate);
-                const itemTax = itemTotal - basePrice;
-                totalTax += itemTax;
+                if (taxRate > 0) {
+                    const basePrice = itemTotal / (1 + taxRate);
+                    const itemTax = itemTotal - basePrice;
+                    totalTax += itemTax;
+                }
             });
             
             this.total = this.subtotal;
             this.taxAmount = Math.round(totalTax);
-
-            if (this.paymentMethod === 'cash') {
+            
+            if (this.paymentMethod === 'cash' || this.paymentMethod === 'pix') {
                 this.calculateChange();
             }
         },
         
+        updatePaymentUI() {
+            if (this.paymentMethod !== 'cash' && this.paymentMethod !== 'pix') {
+                this.currencyPaid = 'PYG';
+                this.paidAmount = this.total;
+            }
+            this.updateTotals();
+        },
+        
         calculateChange() {
-            if (this.paidAmount >= this.total) {
-                this.change = this.paidAmount - this.total;
+            const totalInCurrency = this.getConvertedTotal();
+            
+            if (this.paidAmount >= totalInCurrency) {
+                this.change = this.paidAmount - totalInCurrency;
+                this.changePYG = this.change * this.exchangeRates[this.currencyPaid];
             } else {
                 this.change = 0;
+                this.changePYG = 0;
             }
+        },
+        
+        canProcessSale() {
+            if (this.cart.length === 0) return false;
+            
+            if (this.paymentMethod === 'cash' || this.paymentMethod === 'pix') {
+                return this.paidAmount >= this.getConvertedTotal();
+            }
+            
+            return true;
         },
         
         clearCart() {
             if (confirm('¿Limpiar el carrito?')) {
                 this.cart = [];
+                this.paidAmount = 0;
+                this.change = 0;
+                this.changePYG = 0;
                 this.updateTotals();
             }
         },
         
         processSale() {
-            if (this.cart.length === 0) {
-                alert('El carrito está vacío');
-                return;
-            }
-            
-            if (this.paymentMethod === 'cash' && this.paidAmount < this.total) {
-                alert('El monto pagado es insuficiente');
+            if (!this.canProcessSale()) {
+                alert('Complete los datos de pago');
                 return;
             }
             
@@ -386,65 +518,44 @@ function posApp() {
             form.method = 'POST';
             form.action = '{% url "sales:create_sale" %}';
             
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrfmiddlewaretoken';
-            csrfInput.value = '{{ csrf_token }}';
-            form.appendChild(csrfInput);
+            // CSRF
+            this.addInput(form, 'csrfmiddlewaretoken', '{{ csrf_token }}');
             
+            // Customer
             if (this.selectedCustomer) {
-                const customerInput = document.createElement('input');
-                customerInput.type = 'hidden';
-                customerInput.name = 'customer_id';
-                customerInput.value = this.selectedCustomer;
-                form.appendChild(customerInput);
+                this.addInput(form, 'customer_id', this.selectedCustomer);
             }
             
-            const paymentInput = document.createElement('input');
-            paymentInput.type = 'hidden';
-            paymentInput.name = 'payment_method';
-            paymentInput.value = this.paymentMethod;
-            form.appendChild(paymentInput);
+            // Payment data
+            this.addInput(form, 'payment_method', this.paymentMethod);
+            this.addInput(form, 'currency_paid', this.currencyPaid);
+            this.addInput(form, 'paid_amount_original', this.paidAmount);
+            this.addInput(form, 'exchange_rate_usd', this.exchangeRates.USD);
+            this.addInput(form, 'exchange_rate_brl', this.exchangeRates.BRL);
             
-            const paidInput = document.createElement('input');
-            paidInput.type = 'hidden';
-            paidInput.name = 'paid_amount';
-            paidInput.value = this.paymentMethod === 'cash' ? this.paidAmount : this.total;
-            form.appendChild(paidInput);
+            // PIX reference
+            if (this.paymentMethod === 'pix' && this.pixReference) {
+                this.addInput(form, 'pix_reference', this.pixReference);
+            }
             
+            // Cart items
             this.cart.forEach((item) => {
-                const productInput = document.createElement('input');
-                productInput.type = 'hidden';
-                productInput.name = 'product_id[]';
-                productInput.value = item.product.id;
-                form.appendChild(productInput);
-                
-                const qtyInput = document.createElement('input');
-                qtyInput.type = 'hidden';
-                qtyInput.name = 'quantity[]';
-                qtyInput.value = item.quantity;
-                form.appendChild(qtyInput);
-                
-                const priceInput = document.createElement('input');
-                priceInput.type = 'hidden';
-                priceInput.name = 'unit_price[]';
-                priceInput.value = item.unit_price;
-                form.appendChild(priceInput);
-                
-                const discInput = document.createElement('input');
-                discInput.type = 'hidden';
-                discInput.name = 'discount[]';
-                discInput.value = item.discount;
-                form.appendChild(discInput);
+                this.addInput(form, 'product_id[]', item.product.id);
+                this.addInput(form, 'quantity[]', item.quantity);
+                this.addInput(form, 'unit_price[]', item.unit_price);
+                this.addInput(form, 'discount[]', item.discount);
             });
             
             document.body.appendChild(form);
             form.submit();
         },
         
-        formatNumber(num) {
-            if (!num) return '0';
-            return new Intl.NumberFormat('es-PY').format(Math.round(num));
+        addInput(form, name, value) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
         }
     }
 }

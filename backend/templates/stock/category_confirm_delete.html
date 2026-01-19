@@ -1,0 +1,39 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Eliminar Categoría{% endblock %}
+{% block page_title %}Eliminar Categoría{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Confirmar Eliminación</h5>
+            </div>
+            <div class="card-body">
+                <p>¿Estás seguro que deseas eliminar la categoría?</p>
+                <div class="alert alert-warning">
+                    <strong>{{ category.name }}</strong><br>
+                    <small>Productos asociados: {{ category.products.count }}</small>
+                </div>
+                
+                {% if category.products.exists %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    No se puede eliminar porque tiene productos asociados.
+                </div>
+                <a href="{% url 'stock:category_list' %}" class="btn btn-secondary">Volver</a>
+                {% else %}
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Sí, eliminar
+                    </button>
+                    <a href="{% url 'stock:category_list' %}" class="btn btn-secondary">Cancelar</a>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

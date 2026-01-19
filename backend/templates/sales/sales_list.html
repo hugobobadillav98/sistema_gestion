@@ -1,0 +1,127 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Historial de Ventas{% endblock %}
+{% block page_title %}Historial de Ventas{% endblock %}
+{% block mobile_title %}Ventas{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Historial de Ventas</h5>
+        <a href="{% url 'sales:pos' %}" class="btn btn-success">
+            <i class="bi bi-cart-plus"></i> Nueva Venta
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Estadísticas rápidas -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="alert alert-info mb-0">
+                    <strong><i class="bi bi-graph-up"></i> Total Ventas:</strong> {{ total_sales }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="alert alert-success mb-0">
+                    <strong><i class="bi bi-cash-stack"></i> Monto Total:</strong> ₲ {{ total_amount|floatformat:0 }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <form method="get" class="row g-3 mb-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="Buscar por número de venta..." value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">Todos los estados</option>
+                    <option value="completed" {% if selected_status == "completed" %}selected{% endif %}>Completada</option>
+                    <option value="pending" {% if selected_status == "pending" %}selected{% endif %}>Pendiente</option>
+                    <option value="cancelled" {% if selected_status == "cancelled" %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="payment_method" class="form-select">
+                    <option value="">Todos los métodos</option>
+                    <option value="cash" {% if selected_payment == "cash" %}selected{% endif %}>Efectivo</option>
+                    <option value="card" {% if selected_payment == "card" %}selected{% endif %}>Tarjeta</option>
+                    <option value="transfer" {% if selected_payment == "transfer" %}selected{% endif %}>Transferencia</option>
+                    <option value="credit" {% if selected_payment == "credit" %}selected{% endif %}>Crédito</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+
+        <!-- Tabla de ventas -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nº Venta</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                        <th>Método</th>
+                        <th>Estado</th>
+                        <th>Vendedor</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td><strong><a href="{% url 'sales:sale_detail' sale.pk %}">{{ sale.invoice_number }}</a></strong></td>
+                        <td>{{ sale.sale_date|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if sale.customer %}
+                            {{ sale.customer.name }}
+                            {% else %}
+                            <span class="text-muted">Cliente General</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>₲ {{ sale.total_amount|floatformat:0 }}</strong></td>
+                        <td>
+                            {% if sale.payment_method == 'cash' %}
+                            <i class="bi bi-cash text-success"></i> Efectivo
+                            {% elif sale.payment_method == 'card' %}
+                            <i class="bi bi-credit-card text-primary"></i> Tarjeta
+                            {% elif sale.payment_method == 'transfer' %}
+                            <i class="bi bi-bank text-info"></i> Transferencia
+                            {% elif sale.payment_method == 'credit' %}
+                            <i class="bi bi-calendar-check text-warning"></i> Crédito
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if sale.status == 'completed' %}
+                            <span class="badge bg-success">Completada</span>
+                            {% elif sale.status == 'pending' %}
+                            <span class="badge bg-warning">Pendiente</span>
+                            {% else %}
+                            <span class="badge bg-danger">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ sale.created_by.username }}</td>
+                        <td>
+                            <a href="{% url 'sales:sale_detail' sale.pk %}" class="btn btn-sm btn-primary" title="Ver detalle">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No hay ventas registradas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

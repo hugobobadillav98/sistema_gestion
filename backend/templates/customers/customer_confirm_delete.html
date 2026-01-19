@@ -1,0 +1,46 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Eliminar Cliente{% endblock %}
+{% block page_title %}Eliminar Cliente{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Confirmar Eliminación</h5>
+            </div>
+            <div class="card-body">
+                <p>¿Estás seguro que deseas eliminar este cliente?</p>
+                
+                <div class="alert alert-warning">
+                    <strong>{{ customer.name }}</strong>
+                    {% if customer.ruc %}
+                    <br><small>RUC: {{ customer.get_full_ruc }}</small>
+                    {% endif %}
+                    <br><small>Saldo actual: ₲ {{ customer.current_balance|floatformat:0 }}</small>
+                </div>
+                
+                {% if customer.current_balance > 0 %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <strong>Advertencia:</strong> Este cliente tiene un saldo pendiente de ₲ {{ customer.current_balance|floatformat:0 }}
+                </div>
+                {% endif %}
+                
+                <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Sí, eliminar cliente
+                    </button>
+                    <a href="{% url 'customers:customer_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Cancelar
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

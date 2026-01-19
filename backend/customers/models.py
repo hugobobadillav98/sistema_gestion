@@ -17,12 +17,39 @@ class Customer(TenantAwareModel):
     address = models.TextField(blank=True, verbose_name="Address")
     city = models.CharField(max_length=100, blank=True, verbose_name="City")
     
+    # NUEVOS CAMPOS PARA FACTURACIÓN PARAGUAY
+    ruc = models.CharField(
+        max_length=20, 
+        blank=True, 
+        null=True,
+        verbose_name="RUC",
+        help_text="Registro Único del Contribuyente"
+    )
+    dv = models.CharField(
+        max_length=2, 
+        blank=True, 
+        null=True,
+        verbose_name="DV",
+        help_text="Dígito Verificador"
+    )
+    razon_social = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Razón Social",
+        help_text="Nombre legal para facturación (si es empresa)"
+    )
+    requires_invoice = models.BooleanField(
+        default=False,
+        verbose_name="Requiere Factura Legal",
+        help_text="Cliente solicita factura con RUC"
+    )
+    
     # Account information
     customer_type = models.CharField(
         max_length=20,
         choices=[
-            ('retail', 'Retail'),
-            ('wholesale', 'Wholesale'),
+            ('retail', 'Retail/Minorista'),
+            ('wholesale', 'Wholesale/Mayorista'),
         ],
         default='retail'
     )
@@ -70,6 +97,21 @@ class Customer(TenantAwareModel):
     def available_credit(self):
         """Calculate available credit"""
         return self.credit_limit - self.current_balance
+    
+    # NUEVOS MÉTODOS
+    def get_full_ruc(self):
+        """Retorna RUC completo con DV"""
+        if self.ruc and self.dv:
+            return f"{self.ruc}-{self.dv}"
+        return self.ruc or "Sin RUC"
+    
+    def can_invoice(self):
+        """Verifica si el cliente puede recibir factura legal"""
+        return self.requires_invoice and self.ruc
+    
+    def get_invoice_name(self):
+        """Retorna el nombre para usar en factura"""
+        return self.razon_social if self.razon_social else self.name
 
 
 class CustomerPayment(TenantAwareModel):

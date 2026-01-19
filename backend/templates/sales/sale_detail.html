@@ -1,0 +1,167 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Venta {{ sale.invoice_number }}{% endblock %}
+{% block page_title %}Detalle de Venta{% endblock %}
+{% block mobile_title %}Venta {{ sale.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Encabezado de la venta -->
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-receipt"></i> Venta {{ sale.invoice_number }}
+                </h5>
+                <span class="badge bg-light text-dark">{{ sale.get_status_display }}</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Fecha:</strong> {{ sale.sale_date|date:"d/m/Y H:i" }}</p>
+                        <p><strong>Cliente:</strong> 
+                            {% if sale.customer %}
+                                {{ sale.customer.name }}
+                                {% if sale.customer.ruc %}
+                                <br><small class="text-muted">RUC: {{ sale.customer.get_full_ruc }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Cliente General</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Vendedor:</strong> {{ sale.created_by.get_full_name|default:sale.created_by.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Método de Pago:</strong> {{ sale.get_payment_method_display }}</p>
+                        <p><strong>Estado:</strong> 
+                            {% if sale.status == 'completed' %}
+                            <span class="badge bg-success">{{ sale.get_status_display }}</span>
+                            {% elif sale.status == 'pending' %}
+                            <span class="badge bg-warning">{{ sale.get_status_display }}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ sale.get_status_display }}</span>
+                            {% endif %}
+                        </p>
+                        {% if sale.notes %}
+                        <p><strong>Notas:</strong><br>{{ sale.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items de la venta -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">Productos</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-end">P. Unit.</th>
+                                <th class="text-center">Desc%</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-center">IVA</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                    <br><small class="text-muted">{{ item.product.code }}</small>
+                                </td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">₲ {{ item.unit_price|floatformat:0 }}</td>
+                                <td class="text-center">
+                                    {% if item.discount_percent > 0 %}
+                                    {{ item.discount_percent }}%
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td class="text-end"><strong>₲ {{ item.subtotal|floatformat:0 }}</strong></td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">{{ item.get_tax_type_display }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Totales -->
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 offset-md-6">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Subtotal:</strong></td>
+                                <td class="text-end">₲ {{ sale.subtotal|floatformat:0 }}</td>
+                            </tr>
+                            {% if sale.discount_amount > 0 %}
+                            <tr>
+                                <td><strong>Descuento:</strong></td>
+                                <td class="text-end text-danger">- ₲ {{ sale.discount_amount|floatformat:0 }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td><strong>IVA:</strong></td>
+                                <td class="text-end">₲ {{ sale.tax_amount|floatformat:0 }}</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td><h5 class="mb-0">TOTAL:</h5></td>
+                                <td class="text-end"><h5 class="mb-0">₲ {{ sale.total_amount|floatformat:0 }}</h5></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Pagado:</strong></td>
+                                <td class="text-end">₲ {{ sale.paid_amount|floatformat:0 }}</td>
+                            </tr>
+                            {% if sale.change_amount > 0 %}
+                            <tr>
+                                <td><strong>Vuelto:</strong></td>
+                                <td class="text-end text-success">₲ {{ sale.change_amount|floatformat:0 }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                    <a href="{% url 'sales:sale_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver al Historial
+                    </a>
+                    <a href="{% url 'sales:pos' %}" class="btn btn-primary">
+                        <i class="bi bi-cart"></i> Nueva Venta
+                    </a>
+                    <button class="btn btn-success" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .topbar, .sidebar-fixed, .navbar, .card-header .badge {
+        display: none !important;
+    }
+    .main-content {
+        margin-left: 0 !important;
+    }
+    .card {
+        border: 1px solid #000 !important;
+        page-break-inside: avoid;
+    }
+}
+</style>
+{% endblock %}

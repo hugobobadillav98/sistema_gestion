@@ -1,0 +1,178 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ is_edit|yesno:"Editar,Crear" }} Cliente{% endblock %}
+{% block page_title %}{{ is_edit|yesno:"Editar,Nuevo" }} Cliente{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-plus"></i>
+                    {{ is_edit|yesno:"Editar,Crear Nuevo" }} Cliente
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Información Básica -->
+                    <h6 class="border-bottom pb-2 mb-3">Información Básica</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-8">
+                            <label class="form-label">Nombre Completo <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" value="{{ customer.name }}" required>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo de Cliente</label>
+                            <select name="customer_type" class="form-select">
+                                <option value="retail" {% if customer.customer_type == "retail" or not customer.customer_type %}selected{% endif %}>Minorista</option>
+                                <option value="wholesale" {% if customer.customer_type == "wholesale" %}selected{% endif %}>Mayorista</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Datos Fiscales -->
+                    <h6 class="border-bottom pb-2 mb-3">Datos Fiscales (Para Facturación)</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="requires_invoice" id="requiresInvoice" 
+                                    {% if customer.requires_invoice %}checked{% endif %}
+                                    onchange="toggleInvoiceFields(this.checked)">
+                                <label class="form-check-label" for="requiresInvoice">
+                                    <strong>Cliente requiere factura legal</strong>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6" id="rucField">
+                            <label class="form-label">RUC <span class="text-danger" id="rucRequired">*</span></label>
+                            <input type="text" name="ruc" class="form-control" value="{{ customer.ruc }}" placeholder="12345678">
+                            <small class="text-muted">Sin guión ni dígito verificador</small>
+                        </div>
+                        
+                        <div class="col-md-2" id="dvField">
+                            <label class="form-label">DV <span class="text-danger" id="dvRequired">*</span></label>
+                            <input type="text" name="dv" class="form-control" value="{{ customer.dv }}" placeholder="9" maxlength="2">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">CI/Cédula</label>
+                            <input type="text" name="tax_id" class="form-control" value="{{ customer.tax_id }}" placeholder="1234567">
+                        </div>
+                        
+                        <div class="col-md-12" id="razonSocialField">
+                            <label class="form-label">Razón Social</label>
+                            <input type="text" name="razon_social" class="form-control" value="{{ customer.razon_social }}" placeholder="Para empresas (opcional si es persona física)">
+                            <small class="text-muted">Nombre legal que aparecerá en la factura</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Contacto -->
+                    <h6 class="border-bottom pb-2 mb-3">Información de Contacto</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" value="{{ customer.email }}">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Teléfono</label>
+                            <input type="text" name="phone" class="form-control" value="{{ customer.phone }}">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Celular</label>
+                            <input type="text" name="mobile" class="form-control" value="{{ customer.mobile }}">
+                        </div>
+                        
+                        <div class="col-md-8">
+                            <label class="form-label">Dirección</label>
+                            <textarea name="address" class="form-control" rows="2">{{ customer.address }}</textarea>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Ciudad</label>
+                            <input type="text" name="city" class="form-control" value="{{ customer.city }}">
+                        </div>
+                    </div>
+                    
+                    <!-- Crédito -->
+                    <h6 class="border-bottom pb-2 mb-3">Configuración de Crédito</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Límite de Crédito (₲)</label>
+                            <input type="number" name="credit_limit" class="form-control" value="{{ customer.credit_limit|floatformat:0|default:0 }}" min="0">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Saldo Actual (₲)</label>
+                            <input type="text" class="form-control" value="₲ {{ customer.current_balance|floatformat:0|default:0 }}" disabled>
+                            <small class="text-muted">No se puede editar manualmente</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Notas y Estado -->
+                    <h6 class="border-bottom pb-2 mb-3">Adicional</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <label class="form-label">Notas</label>
+                            <textarea name="notes" class="form-control" rows="3">{{ customer.notes }}</textarea>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="isActive" {% if not is_edit or customer.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="isActive">
+                                    Cliente activo
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'customers:customer_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Guardar Cliente
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mostrar/ocultar campos de facturación
+function toggleInvoiceFields(show) {
+    const fields = ['rucField', 'dvField', 'razonSocialField'];
+    const required = ['rucRequired', 'dvRequired'];
+    
+    fields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+            field.style.display = show ? 'block' : 'none';
+        }
+    });
+    
+    required.forEach(id => {
+        const elem = document.getElementById(id);
+        if (elem) {
+            elem.style.display = show ? 'inline' : 'none';
+        }
+    });
+}
+
+// Ejecutar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('requiresInvoice');
+    toggleInvoiceFields(checkbox.checked);
+});
+</script>
+{% endblock %}

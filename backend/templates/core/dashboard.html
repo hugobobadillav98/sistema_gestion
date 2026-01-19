@@ -121,7 +121,7 @@
                                 </td>
                                 <td>{{ sale.sale_date|date:"d/m/Y H:i" }}</td>
                                 <td>
-                                    <a href="{% url 'sale_detail' sale.id %}" class="btn btn-sm btn-primary">
+                                    <a href="{% url 'sales:sale_detail' sale.pk %}" class="btn btn-sm btn-primary">
                                         <i class="bi bi-eye"></i>
                                     </a>
                                 </td>

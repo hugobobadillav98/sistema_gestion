@@ -45,24 +45,23 @@ def dashboard_view(request):
     low_stock = Product.objects.filter(
         tenant=request.tenant,
         is_active=True,
-        current_stock__lte=F('minimum_stock')  # <- Usar F() correctamente
+        current_stock__lte=F('minimum_stock')
     ).count()
-
     
     # Customers with debt
     customers_debt = Customer.objects.filter(
         tenant=request.tenant,
         is_active=True,
-        current_balance__gt=0
+        current_balance__gt=0 
     ).aggregate(
-        total_debt=Sum('current_balance'),
+        total_debt=Sum('current_balance'), 
         count=Count('id')
     )
     
     # Recent sales
     recent_sales = Sale.objects.filter(
         tenant=request.tenant
-    ).select_related('customer', 'created_by').order_by('-sale_date')[:10]
+    ).select_related('customer').order_by('-sale_date')[:10]
     
     context = {
         'sales_today': sales_today,

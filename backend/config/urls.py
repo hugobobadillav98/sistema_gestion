@@ -9,7 +9,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', core_views.dashboard_view, name='dashboard'),
     path('sales/', include('sales.urls')),
-    
+    path('stock/', include('stock.urls')),
+    path('customers/', include('customers.urls')),
     # URLs de autenticación (AGREGAR)
     path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),

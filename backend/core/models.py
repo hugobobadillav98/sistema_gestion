@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 import uuid
 
 class TenantManager(models.Manager):
@@ -101,3 +103,34 @@ class TenantAwareModel(models.Model):
     
     class Meta:
         abstract = True
+
+class ExchangeRate(models.Model):
+    """Tasas de cambio para múltiples monedas"""
+    CURRENCY_CHOICES = [
+        ('PYG', 'Guaraní paraguayo'),
+        ('USD', 'Dólar estadounidense'),
+        ('BRL', 'Real brasileño'),
+    ]
+    
+    currency = models.CharField(
+        max_length=3, 
+        unique=True, 
+        choices=CURRENCY_CHOICES,
+        verbose_name="Moneda"
+    )
+    rate_to_pyg = models.DecimalField(
+        max_digits=12, 
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal('0.0001'))],
+        help_text="¿Cuántos guaraníes equivale 1 unidad de esta moneda?",
+        verbose_name="Tasa a Guaraníes"
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Última actualización")
+    
+    class Meta:
+        verbose_name = "Tasa de Cambio"
+        verbose_name_plural = "Tasas de Cambio"
+        ordering = ['currency']
+    
+    def __str__(self):
+        return f"1 {self.get_currency_display()} = ₲{self.rate_to_pyg:,.2f}"
