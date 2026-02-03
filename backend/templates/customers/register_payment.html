@@ -1,0 +1,67 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Registrar Pago{% endblock %}
+{% block page_title %}Registrar Pago{% endblock %}
+{% block mobile_title %}Pago{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-cash"></i> Registrar Pago</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Cliente:</strong> {{ customer.name }}<br>
+                    <strong>Saldo actual:</strong> ₲ {{ balance|floatformat:0 }}
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Monto del Pago *</label>
+                        <input type="number" name="amount" class="form-control form-control-lg" 
+                               min="1" step="1000" required autofocus 
+                               placeholder="Ej: 50000">
+                        <small class="text-muted">Máximo: ₲{{ balance|floatformat:0 }}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="cash">Efectivo</option>
+                            <option value="card">Tarjeta</option>
+                            <option value="pix">PIX</option>
+                            <option value="transfer">Transferencia</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">N° de Recibo/Comprobante</label>
+                        <input type="text" name="reference" class="form-control" 
+                               placeholder="Ej: RECIBO-001">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notas</label>
+                        <textarea name="notes" class="form-control" rows="2" 
+                                  placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-circle"></i> Registrar Pago
+                        </button>
+                        <a href="{% url 'customers:customer_account_detail' customer.pk %}" 
+                           class="btn btn-outline-secondary">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

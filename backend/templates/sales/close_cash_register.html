@@ -1,0 +1,98 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Cerrar Caja{% endblock %}
+{% block page_title %}Cierre de Caja y Arqueo{% endblock %}
+{% block mobile_title %}Cerrar Caja{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="bi bi-lock"></i> Arqueo de Caja</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Caja abierta:</strong> {{ cash_register.opened_at|date:"d/m/Y H:i" }}<br>
+                    <strong>Por:</strong> {{ cash_register.opened_by.username }}
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <h6>Contá el efectivo en caja:</h6>
+                    <p class="small text-muted">Ingresá el monto físico que hay en la caja ahora</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Guaraníes (PYG)</label>
+                        <input type="number" name="actual_pyg" class="form-control form-control-lg" 
+                               value="{{ expected_pyg }}" min="0" step="1000" required>
+                        <small class="text-muted">Esperado: ₲ {{ expected_pyg|floatformat:0 }}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Dólares (USD)</label>
+                        <input type="number" name="actual_usd" class="form-control form-control-lg" 
+                               value="{{ expected_usd }}" min="0" step="0.01" required>
+                        <small class="text-muted">Esperado: $ {{ expected_usd|floatformat:2 }}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Reales (BRL)</label>
+                        <input type="number" name="actual_brl" class="form-control form-control-lg" 
+                               value="{{ expected_brl }}" min="0" step="0.01" required>
+                        <small class="text-muted">Esperado: R$ {{ expected_brl|floatformat:2 }}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones del Cierre</label>
+                        <textarea name="notes" class="form-control" rows="2" 
+                                  placeholder="Ej: Faltaron ₲5.000, se encuentra en..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="bi bi-lock"></i> Cerrar Caja
+                        </button>
+                        <a href="{% url 'sales:cash_register_status' %}" class="btn btn-outline-secondary">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Resumen del Turno</h6>
+            </div>
+            <div class="card-body">
+                <h6>Monto Inicial</h6>
+                <ul class="list-unstyled mb-3">
+                    <li>PYG: ₲ {{ cash_register.initial_amount_pyg|floatformat:0 }}</li>
+                    <li>USD: $ {{ cash_register.initial_amount_usd|floatformat:2 }}</li>
+                    <li>BRL: R$ {{ cash_register.initial_amount_brl|floatformat:2 }}</li>
+                </ul>
+
+                <h6>Ventas en Efectivo</h6>
+                <ul class="list-unstyled mb-3">
+                    <li>PYG: ₲ {{ sales_cash.PYG|floatformat:0 }}</li>
+                    <li>USD: $ {{ sales_cash.USD|floatformat:2 }}</li>
+                    <li>BRL: R$ {{ sales_cash.BRL|floatformat:2 }}</li>
+                </ul>
+
+                <hr>
+
+                <h6>Monto Esperado en Caja</h6>
+                <ul class="list-unstyled">
+                    <li><strong>PYG: ₲ {{ expected_pyg|floatformat:0 }}</strong></li>
+                    <li><strong>USD: $ {{ expected_usd|floatformat:2 }}</strong></li>
+                    <li><strong>BRL: R$ {{ expected_brl|floatformat:2 }}</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

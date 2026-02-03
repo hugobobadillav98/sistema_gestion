@@ -17,51 +17,80 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <div class="alert alert-info mb-0">
-                    <strong><i class="bi bi-graph-up"></i> Total Ventas:</strong> {{ total_sales }}
+                    <strong><i class="bi bi-graph-up"></i> Total Ventas:</strong> {{ totals.total_count|default:0 }}
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="alert alert-success mb-0">
-                    <strong><i class="bi bi-cash-stack"></i> Monto Total:</strong> ₲ {{ total_amount|floatformat:0 }}
+                    <strong><i class="bi bi-cash-stack"></i> Monto Total:</strong> ₲ {{ totals.total_sales|floatformat:0|default:"0" }}
                 </div>
             </div>
         </div>
 
         <!-- Filtros -->
         <form method="get" class="row g-3 mb-3">
-            <div class="col-md-4">
-                <input type="text" name="search" class="form-control" placeholder="Buscar por número de venta..." value="{{ search }}">
-            </div>
             <div class="col-md-3">
+                <label class="form-label small">Buscar por N° Factura</label>
+                <input type="text" name="search" class="form-control" 
+                    placeholder="INV-000001..." value="{{ search|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Desde</label>
+                <input type="date" name="date_from" class="form-control" 
+                    value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Hasta</label>
+                <input type="date" name="date_to" class="form-control" 
+                    value="{{ date_to }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Estado</label>
                 <select name="status" class="form-select">
-                    <option value="">Todos los estados</option>
+                    <option value="">Todos</option>
                     <option value="completed" {% if selected_status == "completed" %}selected{% endif %}>Completada</option>
                     <option value="pending" {% if selected_status == "pending" %}selected{% endif %}>Pendiente</option>
                     <option value="cancelled" {% if selected_status == "cancelled" %}selected{% endif %}>Cancelada</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label class="form-label small">Método Pago</label>
                 <select name="payment_method" class="form-select">
-                    <option value="">Todos los métodos</option>
+                    <option value="">Todos</option>
                     <option value="cash" {% if selected_payment == "cash" %}selected{% endif %}>Efectivo</option>
                     <option value="card" {% if selected_payment == "card" %}selected{% endif %}>Tarjeta</option>
+                    <option value="pix" {% if selected_payment == "pix" %}selected{% endif %}>PIX</option>
                     <option value="transfer" {% if selected_payment == "transfer" %}selected{% endif %}>Transferencia</option>
                     <option value="credit" {% if selected_payment == "credit" %}selected{% endif %}>Crédito</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search"></i> Buscar
+                    <i class="bi bi-search"></i>
                 </button>
             </div>
         </form>
+
+        <!-- Botón limpiar filtros -->
+        {% if search or date_from or date_to or selected_status or selected_payment %}
+        <div class="mb-3">
+            <a href="{% url 'sales:sales_list' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Limpiar Filtros
+            </a>
+            <span class="text-muted ms-2">
+                Mostrando {{ totals.total_count }} resultado(s)
+            </span>
+        </div>
+        {% endif %}
+
+
 
         <!-- Tabla de ventas -->
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Nº Venta</th>
+                        <th>Nº Factura</th>
                         <th>Fecha</th>
                         <th>Cliente</th>
                         <th>Total</th>

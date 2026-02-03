@@ -204,6 +204,11 @@ def sales_list(request):
         tenant=request.tenant
     ).select_related('customer', 'created_by').order_by('-sale_date')
     
+    # Search by invoice number
+    search = request.GET.get('search')
+    if search:
+        sales = sales.filter(invoice_number__icontains=search)
+    
     # Date filter
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
@@ -211,30 +216,40 @@ def sales_list(request):
     if date_from:
         sales = sales.filter(sale_date__gte=date_from)
     if date_to:
-        sales = sales.filter(sale_date__lte=date_to)
+        # Incluir todo el día hasta las 23:59:59
+        from datetime import datetime, timedelta
+        date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+        date_to_end = date_to_obj + timedelta(days=1)
+        sales = sales.filter(sale_date__lt=date_to_end)
     
     # Status filter
     status = request.GET.get('status')
     if status:
         sales = sales.filter(status=status)
     
-    # Customer filter
-    customer_id = request.GET.get('customer')
-    if customer_id:
-        sales = sales.filter(customer_id=customer_id)
+    # Payment method filter
+    payment_method = request.GET.get('payment_method')
+    if payment_method:
+        sales = sales.filter(payment_method=payment_method)
     
-    # Calculate totals
+    # Calculate totals (solo para las ventas filtradas)
     totals = sales.aggregate(
         total_sales=Sum('total_amount'),
         total_count=Count('id')
     )
     
     context = {
-        'sales': sales[:100],  # Paginate in production
+        'sales': sales[:100],  # Limitar a 100 resultados
         'totals': totals,
+        'search': search,
+        'selected_status': status,
+        'selected_payment': payment_method,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     
     return render(request, 'sales/sales_list.html', context)
+
 
 
 @login_required

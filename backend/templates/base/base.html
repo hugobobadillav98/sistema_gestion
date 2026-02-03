@@ -315,11 +315,6 @@
                 <i class="bi bi-tags"></i>
                 <span class="nav-text">Categorías</span>
             </a>
-            
-            <a href="#" class="nav-link" data-tooltip="Inventario">
-                <i class="bi bi-boxes"></i>
-                <span class="nav-text">Inventario</span>
-            </a>
 
             <a href="{% url 'customers:customer_list' %}" class="nav-link {% if 'customers' in request.path %}active{% endif %}">
                 <i class="bi bi-people"></i>
@@ -329,7 +324,7 @@
             <!-- Separador -->
             <div class="menu-divider">Ventas</div>
             
-            <a href="{% url 'sales:sale_list' %}" class="nav-link {% if 'sales' in request.path and 'pos' not in request.path %}active{% endif %}">
+            <a href="{% url 'sales:sales_list' %}" class="nav-link {% if 'sales' in request.path and 'pos' not in request.path %}active{% endif %}">
                 <i class="bi bi-receipt"></i>
                 <span class="nav-text">Historial Ventas</span>
             </a>
@@ -339,11 +334,27 @@
                 <span class="nav-text">Reportes</span>
             </a>
             
-            <a href="#" class="nav-link" data-tooltip="Caja">
-                <i class="bi bi-cash-stack"></i>
+            <a href="{% url 'sales:cash_register_status' %}" class="nav-link {% if 'cash' in request.path %}active{% endif %}">
+                <i class="bi bi-cash-coin"></i>
                 <span class="nav-text">Caja</span>
             </a>
-            
+
+            <a href="{% url 'customers:accounts_list' %}" class="nav-link {% if 'accounts' in request.path %}active{% endif %}">
+                <i class="bi bi-wallet2"></i>
+                <span class="nav-text">Cuentas por Cobrar</span>
+                {% if overdue_count > 0 %}
+                    <span class="badge bg-danger ms-2">{{ overdue_count }}</span>
+                {% elif due_soon_count > 0 %}
+                    <span class="badge bg-warning ms-2">{{ due_soon_count }}</span>
+                {% endif %}
+            </a>
+
+            <!-- Proveedores / Cuentas a Pagar -->
+            <a href="{% url 'suppliers:dashboard' %}" class="nav-link {% if 'suppliers' in request.path %}active{% endif %}">
+                <i class="bi bi-building"></i>
+                <span class="nav-text">Proveedores</span>
+            </a>
+
             <!-- Separador -->
             <div class="menu-divider">Sistema</div>
             
@@ -357,10 +368,13 @@
                 <span class="nav-text">Usuarios</span>
             </a>
             
-            <a href="{% url 'logout' %}" class="nav-link" data-tooltip="Cerrar Sesión">
-                <i class="bi bi-box-arrow-right"></i>
-                <span class="nav-text">Cerrar Sesión</span>
-            </a>
+            <form method="POST" action="{% url 'logout' %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="nav-link" style="border: none; background: none; cursor: pointer; text-align: left; width: 100%;">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span class="nav-text">Cerrar Sesión</span>
+                </button>
+            </form>
             
         </nav>
     </div>

@@ -3,6 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, F
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth import logout
+from django.contrib import messages
+
 
 from sales.models import Sale
 from stock.models import Product
@@ -73,3 +76,10 @@ def dashboard_view(request):
     }
     
     return render(request, 'core/dashboard.html', context)
+
+
+def logout_view(request):
+    """Cerrar sesión - acepta GET y POST"""
+    logout(request)
+    messages.success(request, 'Sesión cerrada exitosamente.')
+    return redirect('login')

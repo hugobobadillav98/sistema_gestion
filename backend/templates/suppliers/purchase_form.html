@@ -1,0 +1,156 @@
+<!-- templates/suppliers/purchase_form.html -->
+
+{% extends 'base/base.html' %}
+
+{% block title %}Registrar Compra{% endblock %}
+
+{% block page_title %}Registrar Compra a Crédito{% endblock %}
+
+{% block mobile_title %}Registrar Compra{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Registrar Compra a Proveedor</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" x-data="purchaseFormData()" @submit="validateForm">
+                    {% csrf_token %}
+                    
+                    <!-- Proveedor -->
+                    <div class="mb-3">
+                        <label class="form-label">Proveedor *</label>
+                        <select name="supplier_id" class="form-select" required x-model="supplierId" @change="updateDueDate">
+                            <option value="">Seleccionar proveedor...</option>
+                            {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" data-days="{{ supplier.payment_terms_days }}">
+                                {{ supplier.name }} - Plazo: {{ supplier.payment_terms_days }} días
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Monto y Factura -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Monto Total (₲) *</label>
+                            <input 
+                                type="number" 
+                                name="amount" 
+                                class="form-control" 
+                                required 
+                                min="1" 
+                                step="1"
+                                x-model.number="amount"
+                                @input="calculateInstallments"
+                            >
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nº Factura *</label>
+                            <input type="text" name="invoice_number" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <!-- Fecha de Vencimiento -->
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de Vencimiento</label>
+                        <input 
+                            type="date" 
+                            name="due_date" 
+                            class="form-control"
+                            x-model="dueDate"
+                        >
+                        <small class="text-muted">Si no se especifica, se usa el plazo del proveedor</small>
+                    </div>
+
+                    <!-- Cuotas -->
+                    <div class="mb-3">
+                        <label class="form-label">Pago en Cuotas</label>
+                        <select name="installments" class="form-select" x-model.number="installments" @change="calculateInstallments">
+                            <option value="1">Pago único</option>
+                            <option value="2">2 cuotas</option>
+                            <option value="3">3 cuotas</option>
+                            <option value="4">4 cuotas</option>
+                            <option value="6">6 cuotas</option>
+                            <option value="12">12 cuotas</option>
+                        </select>
+                    </div>
+
+                    <!-- Mostrar cálculo de cuotas -->
+                    <div x-show="installments > 1" class="alert alert-info">
+                        <strong>Detalle de Cuotas:</strong>
+                        <p class="mb-0">
+                            <span x-text="installments"></span> cuotas de 
+                            <strong>₲<span x-text="amountPerInstallment.toLocaleString('es-PY')"></span></strong>
+                        </p>
+                        <small class="text-muted">Vencimiento mensual a partir de la fecha indicada</small>
+                    </div>
+
+                    <!-- Notas -->
+                    <div class="mb-3">
+                        <label class="form-label">Notas / Observaciones</label>
+                        <textarea name="notes" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'suppliers:list' %}" class="btn btn-secondary">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Registrar Compra
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function purchaseFormData() {
+    return {
+        supplierId: '',
+        amount: 0,
+        installments: 1,
+        dueDate: '',
+        amountPerInstallment: 0,
+        
+        updateDueDate() {
+            if (!this.supplierId) return;
+            
+            const select = event.target;
+            const option = select.options[select.selectedIndex];
+            const days = parseInt(option.dataset.days || 30);
+            
+            // Calcular fecha de vencimiento
+            const today = new Date();
+            const due = new Date(today.setDate(today.getDate() + days));
+            this.dueDate = due.toISOString().split('T')[0];
+        },
+        
+        calculateInstallments() {
+            if (this.amount > 0 && this.installments > 0) {
+                this.amountPerInstallment = Math.round(this.amount / this.installments);
+            }
+        },
+        
+        validateForm(e) {
+            if (!this.supplierId) {
+                alert('Debe seleccionar un proveedor');
+                e.preventDefault();
+                return false;
+            }
+            if (this.amount <= 0) {
+                alert('El monto debe ser mayor a 0');
+                e.preventDefault();
+                return false;
+            }
+            return true;
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Abrir Caja{% endblock %}
+{% block page_title %}Abrir Caja{% endblock %}
+{% block mobile_title %}Abrir Caja{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-unlock"></i> Apertura de Caja</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <p class="text-muted">Ingresá el monto inicial en efectivo con el que comenzás el turno:</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Guaraníes (PYG)</label>
+                        <input type="number" name="initial_pyg" class="form-control" 
+                               value="0" min="0" step="1000">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Dólares (USD)</label>
+                        <input type="number" name="initial_usd" class="form-control" 
+                               value="0" min="0" step="0.01">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Reales (BRL)</label>
+                        <input type="number" name="initial_brl" class="form-control" 
+                               value="0" min="0" step="0.01">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notas (Opcional)</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-unlock"></i> Abrir Caja
+                        </button>
+                        <a href="{% url 'sales:cash_register_status' %}" class="btn btn-outline-secondary">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

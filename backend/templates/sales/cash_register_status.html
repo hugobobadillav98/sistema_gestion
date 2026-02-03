@@ -1,0 +1,148 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Estado de Caja{% endblock %}
+{% block page_title %}Control de Caja{% endblock %}
+{% block mobile_title %}Caja{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Caja Actual -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-cash-coin"></i> Caja Actual
+                </h5>
+                {% if not open_register %}
+                <a href="{% url 'sales:open_cash_register' %}" class="btn btn-success">
+                    <i class="bi bi-unlock"></i> Abrir Caja
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if open_register %}
+                <!-- Caja Abierta -->
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle"></i> Caja Abierta</h6>
+                    <p class="mb-0">
+                        <strong>Abierta por:</strong> {{ open_register.opened_by.username }}<br>
+                        <strong>Fecha:</strong> {{ open_register.opened_at|date:"d/m/Y H:i" }}
+                    </p>
+                </div>
+
+                <h6>Monto Inicial</h6>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <small class="text-muted">PYG</small>
+                                <h4>₲ {{ open_register.initial_amount_pyg|floatformat:0 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <small class="text-muted">USD</small>
+                                <h4>$ {{ open_register.initial_amount_usd|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <small class="text-muted">BRL</small>
+                                <h4>R$ {{ open_register.initial_amount_brl|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6>Ventas en Efectivo (Turno Actual)</h6>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <small>PYG</small>
+                                <h4>₲ {{ sales_summary.PYG.total|floatformat:0|default:"0" }}</h4>
+                                <small>{{ sales_summary.PYG.count|default:0 }} ventas</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <small>USD</small>
+                                <h4>$ {{ sales_summary.USD.total|floatformat:2|default:"0.00" }}</h4>
+                                <small>{{ sales_summary.USD.count|default:0 }} ventas</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <small>BRL</small>
+                                <h4>R$ {{ sales_summary.BRL.total|floatformat:2|default:"0.00" }}</h4>
+                                <small>{{ sales_summary.BRL.count|default:0 }} ventas</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <a href="{% url 'sales:close_cash_register' open_register.pk %}" class="btn btn-warning btn-lg">
+                        <i class="bi bi-lock"></i> Cerrar Caja y Arqueo
+                    </a>
+                </div>
+
+                {% else %}
+                <!-- Sin Caja Abierta -->
+                <div class="alert alert-warning text-center">
+                    <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
+                    <h5>No hay caja abierta</h5>
+                    <p>Debes abrir una caja para empezar a registrar ventas</p>
+                    <a href="{% url 'sales:open_cash_register' %}" class="btn btn-success">
+                        <i class="bi bi-unlock"></i> Abrir Caja Ahora
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Historial de Cierres -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Últimos Cierres</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for register in closed_registers %}
+                    <a href="{% url 'sales:cash_register_detail' register.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted">{{ register.opened_at|date:"d/m/Y" }}</small>
+                                <br>
+                                <small>{{ register.opened_by.username }}</small>
+                            </div>
+                            <div>
+                                {% if register.difference_pyg == 0 and register.difference_usd == 0 and register.difference_brl == 0 %}
+                                <span class="badge bg-success">OK</span>
+                                {% else %}
+                                <span class="badge bg-warning">Diferencia</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <div class="list-group-item text-muted text-center">
+                        Sin cierres recientes
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

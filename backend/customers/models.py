@@ -1,5 +1,8 @@
 from django.db import models
 from core.models import TenantAwareModel, TenantManager
+import uuid
+from django.db.models import Sum
+from django.utils import timezone
 
 
 class Customer(TenantAwareModel):
@@ -112,6 +115,21 @@ class Customer(TenantAwareModel):
     def get_invoice_name(self):
         """Retorna el nombre para usar en factura"""
         return self.razon_social if self.razon_social else self.name
+    
+    def get_balance(self):
+        """Get current balance (total debt - payments)."""
+        balance = self.account_transactions.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+        return balance
+
+    def get_overdue_balance(self):
+        """Get overdue balance."""
+        overdue = self.account_transactions.filter(
+            transaction_type='sale',
+            due_date__lt=timezone.now().date()
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        return overdue
 
 
 class CustomerPayment(TenantAwareModel):
@@ -156,3 +174,123 @@ class CustomerPayment(TenantAwareModel):
     
     def __str__(self):
         return f"{self.customer.name} - {self.amount}"
+
+class CustomerAccount(models.Model):
+    """Customer credit account and payments."""
+    
+    TRANSACTION_TYPES = [
+        ('sale', 'Venta a Crédito'),
+        ('payment', 'Pago'),
+        ('adjustment', 'Ajuste'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('core.Tenant', on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='account_transactions')
+    
+    # Transaction info
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=12, decimal_places=0)  # Positivo = debe, Negativo = pago
+    
+    # Reference
+    sale = models.ForeignKey('sales.Sale', on_delete=models.CASCADE, null=True, blank=True)
+    reference = models.CharField(max_length=100, blank=True, help_text="N° de recibo, comprobante, etc")
+    
+    # Payment details
+    payment_method = models.CharField(max_length=20, blank=True)
+    
+    # Dates
+    transaction_date = models.DateTimeField(default=timezone.now)
+    due_date = models.DateField(null=True, blank=True, help_text="Fecha de vencimiento original")
+    promised_date = models.DateField(null=True, blank=True, help_text="Fecha prometida de pago por el cliente")
+    
+    # Installments (Cuotas)
+    total_installments = models.IntegerField(default=1, help_text="Número total de cuotas")
+    installment_number = models.IntegerField(default=1, help_text="Número de esta cuota (1, 2, 3...)")
+    parent_transaction = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='installments', 
+        help_text="Transacción padre si esta es una cuota"
+    )
+    
+    # Notes
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey('auth.User', on_delete=models.PROTECT)
+    
+    class Meta:
+        ordering = ['-transaction_date']
+        
+    def __str__(self):
+        if self.total_installments > 1:
+            return f"{self.customer.name} - {self.get_transaction_type_display()} - ₲{self.amount} ({self.installment_number}/{self.total_installments})"
+        return f"{self.customer.name} - {self.get_transaction_type_display()} - ₲{self.amount}"
+    
+    @property
+    def is_overdue(self):
+        """Check if transaction is overdue based on promised date or due date."""
+        from django.utils import timezone
+        if self.transaction_type == 'sale':
+            # Usar fecha prometida si existe, sino la fecha de vencimiento
+            check_date = self.promised_date or self.due_date
+            if check_date:
+                return check_date < timezone.now().date()
+        return False
+
+    @property
+    def days_overdue(self):
+        """Get number of days overdue based on promised date or due date."""
+        from django.utils import timezone
+        if self.is_overdue:
+            check_date = self.promised_date or self.due_date
+            return (timezone.now().date() - check_date).days
+        return 0
+    
+    @property
+    def effective_due_date(self):
+        """Get the effective due date (promised date takes priority)."""
+        return self.promised_date or self.due_date
+    
+    @property
+    def is_installment(self):
+        """Check if this is an installment payment."""
+        return self.total_installments > 1
+
+
+def get_overdue_customers(tenant):
+    """Get customers with overdue payments."""
+    from django.db.models import Sum, Q
+    from django.utils import timezone
+    from decimal import Decimal
+    
+    # Obtener el balance por cliente considerando ventas y pagos
+    customers_with_balance = CustomerAccount.objects.filter(
+        tenant=tenant
+    ).values('customer').annotate(
+        total_sales=Sum('amount', filter=Q(transaction_type='sale')),
+        total_payments=Sum('amount', filter=Q(transaction_type='payment'))
+    )
+    
+    # Filtrar clientes con ventas vencidas
+    overdue_customer_ids = []
+    
+    for customer_data in customers_with_balance:
+        total_sales = customer_data['total_sales'] or Decimal('0')
+        total_payments = customer_data['total_payments'] or Decimal('0')
+        balance = total_sales - total_payments
+        
+        if balance > 0:
+            # Verificar si tiene transacciones vencidas
+            has_overdue = CustomerAccount.objects.filter(
+                tenant=tenant,
+                customer_id=customer_data['customer'],
+                transaction_type='sale',
+                due_date__lt=timezone.now().date()
+            ).exists()
+            
+            if has_overdue:
+                overdue_customer_ids.append(customer_data['customer'])
+    
+    return Customer.objects.filter(id__in=overdue_customer_ids)

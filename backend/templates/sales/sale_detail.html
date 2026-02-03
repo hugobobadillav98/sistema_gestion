@@ -33,6 +33,24 @@
                     </div>
                     <div class="col-md-6">
                         <p><strong>Método de Pago:</strong> {{ sale.get_payment_method_display }}</p>
+
+                        {% if sale.currency_paid != 'PYG' %}
+                        <p><strong>Moneda de Pago:</strong> 
+                            {{ sale.get_currency_paid_display }}
+                            <br><small class="text-muted">
+                                Total: {{ sale.get_foreign_currency_symbol }} {{ sale.get_total_in_foreign_currency|floatformat:2 }}
+                                (₲ {{ sale.total_amount|floatformat:0 }})
+                                <br>Tasa: 1 {{ sale.currency_paid }} = ₲ {{ sale.get_exchange_rate_used|floatformat:0 }}
+                                {% if sale.paid_amount_original %}
+                                    <br>Pagó: {{ sale.get_foreign_currency_symbol }} {{ sale.paid_amount_original|floatformat:2 }}
+                                {% endif %}
+                            </small>
+                        </p>
+                        {% endif %}
+
+                        {% if sale.payment_method == 'pix' and sale.pix_reference %}
+                        <p><strong>Ref. PIX:</strong> <code>{{ sale.pix_reference }}</code></p>
+                        {% endif %}
                         <p><strong>Estado:</strong> 
                             {% if sale.status == 'completed' %}
                             <span class="badge bg-success">{{ sale.get_status_display }}</span>
@@ -69,7 +87,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in items %}
+                            {% for item in sale.items.all %}
                             <tr>
                                 <td>
                                     <strong>{{ item.product.name }}</strong>
@@ -135,7 +153,7 @@
                 </div>
 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
-                    <a href="{% url 'sales:sale_list' %}" class="btn btn-secondary">
+                    <a href="{% url 'sales:sales_list' %}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Volver al Historial
                     </a>
                     <a href="{% url 'sales:pos' %}" class="btn btn-primary">

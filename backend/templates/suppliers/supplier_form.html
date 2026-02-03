@@ -1,0 +1,148 @@
+<!-- templates/suppliers/supplier_form.html -->
+
+{% extends 'base/base.html' %}
+
+{% block title %}{% if is_edit %}Editar{% else %}Nuevo{% endif %} Proveedor{% endblock %}
+
+{% block page_title %}{% if is_edit %}Editar{% else %}Nuevo{% endif %} Proveedor{% endblock %}
+
+{% block mobile_title %}{% if is_edit %}Editar{% else %}Nuevo{% endif %} Proveedor{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    {% if is_edit %}
+                        Editar Proveedor: {{ supplier.name }}
+                    {% else %}
+                        Nuevo Proveedor
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" x-data="supplierFormData()">
+                    {% csrf_token %}
+                    
+                    <!-- Información Básica -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Nombre / Razón Social *</label>
+                            <input 
+                                type="text" 
+                                name="name" 
+                                class="form-control" 
+                                value="{{ supplier.name|default:'' }}"
+                                required
+                            >
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">RUC</label>
+                            <input 
+                                type="text" 
+                                name="tax_id" 
+                                class="form-control"
+                                value="{{ supplier.tax_id|default:'' }}"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Contacto -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Teléfono</label>
+                            <input 
+                                type="text" 
+                                name="phone" 
+                                class="form-control"
+                                value="{{ supplier.phone|default:'' }}"
+                            >
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input 
+                                type="email" 
+                                name="email" 
+                                class="form-control"
+                                value="{{ supplier.email|default:'' }}"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Dirección -->
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <textarea name="address" class="form-control" rows="2">{{ supplier.address|default:'' }}</textarea>
+                    </div>
+
+                    <!-- Persona de Contacto -->
+                    <div class="mb-3">
+                        <label class="form-label">Persona de Contacto</label>
+                        <input 
+                            type="text" 
+                            name="contact_person" 
+                            class="form-control"
+                            value="{{ supplier.contact_person|default:'' }}"
+                        >
+                    </div>
+
+                    <!-- Condiciones Comerciales -->
+                    <hr>
+                    <h6>Condiciones Comerciales</h6>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Plazo de Pago (días)</label>
+                            <input 
+                                type="number" 
+                                name="payment_terms_days" 
+                                class="form-control" 
+                                value="{{ supplier.payment_terms_days|default:30 }}" 
+                                min="0"
+                            >
+                            <small class="text-muted">Ejemplo: 30, 60, 90 días</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Límite de Crédito (₲)</label>
+                            <input 
+                                type="number" 
+                                name="credit_limit" 
+                                class="form-control" 
+                                value="{{ supplier.credit_limit|default:0|floatformat:0 }}" 
+                                min="0" 
+                                step="1000"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Notas -->
+                    <div class="mb-3">
+                        <label class="form-label">Notas</label>
+                        <textarea name="notes" class="form-control" rows="3">{{ supplier.notes|default:'' }}</textarea>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% if is_edit %}{% url 'suppliers:detail' supplier.id %}{% else %}{% url 'suppliers:list' %}{% endif %}" class="btn btn-secondary">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> 
+                            {% if is_edit %}Actualizar{% else %}Guardar{% endif %} Proveedor
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function supplierFormData() {
+    return {
+        // Alpine.js validation si necesitas
+    }
+}
+</script>
+{% endblock %}

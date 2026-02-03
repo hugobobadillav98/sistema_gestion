@@ -203,6 +203,45 @@
                         </select>
                     </div>
                     
+                    <!-- Fecha Prometida (solo para crédito) -->
+                    <div class="mb-3" x-show="paymentMethod === 'credit'">
+                        <label class="form-label">
+                            <i class="bi bi-calendar-event"></i> Fecha Prometida de Pago
+                        </label>
+                        <input 
+                            type="date" 
+                            class="form-control" 
+                            x-model="promisedDate"
+                            :min="new Date().toISOString().split('T')[0]"
+                        >
+                        <small class="text-muted">¿Cuándo prometió pagar el cliente?</small>
+                    </div>
+
+                    <!-- Cuotas (solo para crédito) -->
+                    <div class="mb-3" x-show="paymentMethod === 'credit'">
+                        <label class="form-label">
+                            <i class="bi bi-credit-card"></i> Número de Cuotas
+                        </label>
+                        <select class="form-select" x-model.number="installments">
+                            <option value="1">1 cuota (Pago único)</option>
+                            <option value="2">2 cuotas</option>
+                            <option value="3">3 cuotas</option>
+                            <option value="4">4 cuotas</option>
+                            <option value="6">6 cuotas</option>
+                            <option value="12">12 cuotas</option>
+                        </select>
+                        <small class="text-muted">
+                            <span x-show="installments > 1">
+                                Monto por cuota: ₲ <span x-text="formatNumber(total / installments)"></span>
+                            </span>
+                        </small>
+                    </div>
+
+                    <!-- Alerta si falta cliente en crédito -->
+                    <div class="alert alert-warning mb-3" x-show="paymentMethod === 'credit' && !selectedCustomer">
+                        <small><i class="bi bi-exclamation-triangle"></i> Debe seleccionar un cliente para ventas a crédito</small>
+                    </div>
+                    
                     <!-- Currency Selector (solo para efectivo y PIX) -->
                     <div class="mb-3" x-show="paymentMethod === 'cash' || paymentMethod === 'pix'">
                         <label class="form-label">Moneda de Pago</label>
@@ -259,7 +298,7 @@
                     </div>
                     
                     <!-- Paid Amount (para efectivo y PIX) -->
-                    <div class="mb-3" x-show="paymentMethod === 'cash' || paymentMethod === 'pix'">
+                    <div class="mb-3" x-show="paymentMethod === 'cash'">
                         <label class="form-label">
                             Monto Recibido (<span x-text="getCurrencySymbol(currencyPaid)"></span>)
                         </label>
@@ -346,6 +385,8 @@ function posData() {
         currencyPaid: 'PYG',
         paidAmount: 0,
         pixReference: '',
+        promisedDate: '',
+        installments: 1,
         
         // Totals
         subtotal: 0,
@@ -469,14 +510,31 @@ function posData() {
         },
         
         updatePaymentUI() {
-            if (this.paymentMethod !== 'cash' && this.paymentMethod !== 'pix') {
+            if (this.paymentMethod === 'pix' || this.paymentMethod === 'card' || 
+                this.paymentMethod === 'transfer') {
+                // Pagos digitales: monto exacto, sin vuelto
                 this.currencyPaid = 'PYG';
                 this.paidAmount = this.total;
+                this.change = 0;
+                this.changePYG = 0;
+            } else if (this.paymentMethod === 'credit') {
+                // Crédito: no requiere pago inmediato
+                this.currencyPaid = 'PYG';
+                this.paidAmount = 0;
+                this.change = 0;
+                this.changePYG = 0;
             }
             this.updateTotals();
         },
         
         calculateChange() {
+            // Solo calcular vuelto para efectivo
+            if (this.paymentMethod !== 'cash') {
+                this.change = 0;
+                this.changePYG = 0;
+                return;
+            }
+            
             const totalInCurrency = this.getConvertedTotal();
             
             if (this.paidAmount >= totalInCurrency) {
@@ -490,6 +548,11 @@ function posData() {
         
         canProcessSale() {
             if (this.cart.length === 0) return false;
+            
+            // Validar que tenga cliente si es crédito
+            if (this.paymentMethod === 'credit' && !this.selectedCustomer) {
+                return false;
+            }
             
             if (this.paymentMethod === 'cash' || this.paymentMethod === 'pix') {
                 return this.paidAmount >= this.getConvertedTotal();
@@ -532,6 +595,14 @@ function posData() {
             this.addInput(form, 'paid_amount_original', this.paidAmount);
             this.addInput(form, 'exchange_rate_usd', this.exchangeRates.USD);
             this.addInput(form, 'exchange_rate_brl', this.exchangeRates.BRL);
+            
+            // Fecha prometida y cuotas (si es crédito)
+            if (this.paymentMethod === 'credit' && this.promisedDate) {
+                this.addInput(form, 'promised_date', this.promisedDate);
+            }
+            if (this.paymentMethod === 'credit' && this.installments) {
+                this.addInput(form, 'installments', this.installments);
+            }
             
             // PIX reference
             if (this.paymentMethod === 'pix' && this.pixReference) {

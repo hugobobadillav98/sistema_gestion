@@ -12,29 +12,12 @@ class SaleService:
     @staticmethod
     @transaction.atomic
     def create_sale(tenant, items_data, customer=None, payment_method='cash', 
-                   paid_amount=0, created_by=None, notes='',
-                   currency_paid='PYG', paid_amount_original=0,
-                   exchange_rate_usd=7300, exchange_rate_brl=1450,
-                   pix_reference=''):
+                paid_amount=0, created_by=None, notes='',
+                currency_paid='PYG', paid_amount_original=0,
+                exchange_rate_usd=7300, exchange_rate_brl=1450,
+                pix_reference=''):
         """
         Create a new sale with items and update stock.
-        
-        Args:
-            tenant: Tenant object
-            items_data: List of dicts with {product_id, quantity, unit_price, discount_percent}
-            customer: Customer object or None
-            payment_method: Payment method choice
-            paid_amount: Amount paid in PYG
-            created_by: User who created the sale
-            notes: Additional notes
-            currency_paid: Currency used for payment (PYG, USD, BRL)
-            paid_amount_original: Amount paid in original currency
-            exchange_rate_usd: USD to PYG exchange rate
-            exchange_rate_brl: BRL to PYG exchange rate
-            pix_reference: PIX transaction ID
-            
-        Returns:
-            Sale object
         """
         # Generate invoice number
         last_sale = Sale.objects.filter(tenant=tenant).order_by('-created_at').first()
@@ -56,7 +39,7 @@ class SaleService:
             paid_amount=int(Decimal(str(paid_amount))),
             created_by=created_by,
             notes=notes,
-            total_amount=0,  # Will be calculated
+            total_amount=0,
             subtotal=0,
             tax_amount=0,
             discount_amount=0,
@@ -91,7 +74,7 @@ class SaleService:
                 quantity=quantity,
                 unit_price=unit_price,
                 discount_percent=discount_percent,
-                tax_type=product.tax_type  # ← Correcto: tax_type, no tax_rate
+                tax_type=product.tax_type
             )
             sale_item.calculate_totals()
             sale_item.save()
@@ -111,8 +94,8 @@ class SaleService:
                 product=product,
                 movement_type='sale',
                 quantity=quantity,
-                previous_stock=previous_stock,  # ← AGREGAR
-                new_stock=product.current_stock,  # ← AGREGAR
+                previous_stock=previous_stock,
+                new_stock=product.current_stock,
                 reference=invoice_number,
                 notes=f"Venta {invoice_number}",
                 created_by=created_by
@@ -135,7 +118,29 @@ class SaleService:
         
         sale.save()
         
+        # ==================== CUENTAS POR COBRAR ====================
+        # If payment method is credit, create account transaction
+        if payment_method == 'credit' and customer:
+            from customers.models import CustomerAccount
+            from datetime import timedelta
+            
+            # Create debt transaction
+            CustomerAccount.objects.create(
+                tenant=tenant,
+                customer=customer,
+                transaction_type='sale',
+                amount=sale.total_amount,
+                sale=sale,
+                payment_method='credit',
+                transaction_date=sale.sale_date,
+                due_date=(sale.sale_date + timedelta(days=30)).date(),
+                notes=f"Venta {sale.invoice_number}",
+                created_by=created_by
+            )
+        # ============================================================
+        
         return sale
+
     
     @staticmethod
     @transaction.atomic

@@ -1,8 +1,10 @@
+# config/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth import views as auth_views  # ← AGREGAR
+from django.contrib.auth import views as auth_views
 from core import views as core_views
 
 urlpatterns = [
@@ -11,9 +13,11 @@ urlpatterns = [
     path('sales/', include('sales.urls')),
     path('stock/', include('stock.urls')),
     path('customers/', include('customers.urls')),
-    # URLs de autenticación (AGREGAR)
+    path('suppliers/', include('suppliers.urls')),
+    
+    # Autenticación
     path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    path('logout/', core_views.logout_view, name='logout'),
 ]
 
 if settings.DEBUG:

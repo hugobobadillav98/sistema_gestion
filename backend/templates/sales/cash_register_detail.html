@@ -1,0 +1,153 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Detalle de Caja{% endblock %}
+{% block page_title %}Reporte de Caja{% endblock %}
+{% block mobile_title %}Reporte{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-file-earmark-text"></i> Reporte de Caja
+                </h5>
+                <button onclick="window.print()" class="btn btn-sm btn-primary">
+                    <i class="bi bi-printer"></i> Imprimir
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- Info General -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Apertura:</strong> {{ cash_register.opened_at|date:"d/m/Y H:i" }}</p>
+                        <p class="mb-1"><strong>Abierta por:</strong> {{ cash_register.opened_by.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Cierre:</strong> 
+                            {% if cash_register.closed_at %}
+                            {{ cash_register.closed_at|date:"d/m/Y H:i" }}
+                            {% else %}
+                            <span class="badge bg-success">Abierta</span>
+                            {% endif %}
+                        </p>
+                        {% if cash_register.closed_by %}
+                        <p class="mb-1"><strong>Cerrada por:</strong> {{ cash_register.closed_by.username }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Arqueo -->
+                {% if cash_register.status == 'closed' %}
+                <h6>Arqueo de Caja</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Moneda</th>
+                                <th>Inicial</th>
+                                <th>Ventas</th>
+                                <th>Esperado</th>
+                                <th>Real</th>
+                                <th>Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>PYG</strong></td>
+                                <td>₲ {{ cash_register.initial_amount_pyg|floatformat:0 }}</td>
+                                <td>₲ {{ sales_pyg|floatformat:0 }}</td>
+                                <td>₲ {{ cash_register.expected_amount_pyg|floatformat:0 }}</td>
+                                <td>₲ {{ cash_register.actual_amount_pyg|floatformat:0 }}</td>
+                                <td class="{% if cash_register.difference_pyg == 0 %}text-success{% elif cash_register.difference_pyg > 0 %}text-info{% else %}text-danger{% endif %}">
+                                    ₲ {{ cash_register.difference_pyg|floatformat:0 }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>USD</strong></td>
+                                <td>$ {{ cash_register.initial_amount_usd|floatformat:2 }}</td>
+                                <td>$ {{ sales_usd|floatformat:2 }}</td>
+                                <td>$ {{ cash_register.expected_amount_usd|floatformat:2 }}</td>
+                                <td>$ {{ cash_register.actual_amount_usd|floatformat:2 }}</td>
+                                <td class="{% if cash_register.difference_usd == 0 %}text-success{% elif cash_register.difference_usd > 0 %}text-info{% else %}text-danger{% endif %}">
+                                    $ {{ cash_register.difference_usd|floatformat:2 }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>BRL</strong></td>
+                                <td>R$ {{ cash_register.initial_amount_brl|floatformat:2 }}</td>
+                                <td>R$ {{ sales_brl|floatformat:2 }}</td>
+                                <td>R$ {{ cash_register.expected_amount_brl|floatformat:2 }}</td>
+                                <td>R$ {{ cash_register.actual_amount_brl|floatformat:2 }}</td>
+                                <td class="{% if cash_register.difference_brl == 0 %}text-success{% elif cash_register.difference_brl > 0 %}text-info{% else %}text-danger{% endif %}">
+                                    R$ {{ cash_register.difference_brl|floatformat:2 }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Ventas por Método de Pago -->
+                <h6>Ventas por Método de Pago</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Método</th>
+                                <th class="text-end">Cantidad</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for method, data in sales_by_method.items %}
+                            <tr>
+                                <td>{{ method }}</td>
+                                <td class="text-end">{{ data.count|default:0 }}</td>
+                                <td class="text-end">₲ {{ data.total|floatformat:0|default:"0" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if cash_register.notes %}
+                <div class="alert alert-secondary mt-3">
+                    <strong>Notas:</strong><br>
+                    {{ cash_register.notes|linebreaks }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Resumen</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Total Ventas:</strong> {{ sales.count }}</p>
+                <p><strong>Total General:</strong> ₲ {{ sales.aggregate.total_amount__sum|floatformat:0|default:"0" }}</p>
+                
+                {% if cash_register.status == 'closed' %}
+                <hr>
+                {% if cash_register.difference_pyg == 0 and cash_register.difference_usd == 0 and cash_register.difference_brl == 0 %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> Arqueo perfecto
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> Hay diferencias en el arqueo
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <a href="{% url 'sales:cash_register_status' %}" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

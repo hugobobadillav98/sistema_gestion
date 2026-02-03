@@ -1,0 +1,142 @@
+<!-- templates/suppliers/accounts_payable_dashboard.html -->
+
+{% extends 'base/base.html' %}
+
+{% block title %}Cuentas a Pagar - Dashboard{% endblock %}
+
+{% block page_title %}Cuentas a Pagar{% endblock %}
+
+{% block mobile_title %}Cuentas a Pagar{% endblock %}
+
+{% block content %}
+<div x-data="dashboardData()">
+    <!-- Resumen de Cuentas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Adeudado</h6>
+                    <h3 class="mb-0">₲{{ summary.total_debt|floatformat:0|default:"0" }}</h3>
+                    <small>{{ summary.suppliers_count }} proveedores</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Deuda Vencida</h6>
+                    <h3 class="mb-0">₲{{ summary.overdue_debt|floatformat:0|default:"0" }}</h3>
+                    <small>{{ summary.overdue_suppliers_count }} con mora</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Vence Esta Semana</h6>
+                    <h3 class="mb-0">₲{{ summary.due_this_week|floatformat:0|default:"0" }}</h3>
+                    <small>Próximos 7 días</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Vence Este Mes</h6>
+                    <h3 class="mb-0">₲{{ summary.due_this_month|floatformat:0|default:"0" }}</h3>
+                    <small>Próximos 30 días</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <a href="{% url 'suppliers:list' %}" class="btn btn-outline-primary">
+                    <i class="bi bi-list"></i> Ver Proveedores
+                </a>
+                <a href="{% url 'suppliers:create' %}" class="btn btn-outline-success">
+                    <i class="bi bi-plus-circle"></i> Nuevo Proveedor
+                </a>
+                <a href="{% url 'suppliers:purchase_create' %}" class="btn btn-outline-info">
+                    <i class="bi bi-cart-plus"></i> Registrar Compra
+                </a>
+                <a href="{% url 'suppliers:payment_create' %}" class="btn btn-outline-warning">
+                    <i class="bi bi-cash"></i> Registrar Pago
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proveedores con Deuda Vencida -->
+    {% if overdue_suppliers %}
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle"></i>
+                Proveedores con Deuda Vencida ({{ overdue_suppliers|length }})
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Proveedor</th>
+                            <th>Teléfono</th>
+                            <th class="text-end">Saldo Total</th>
+                            <th class="text-end">Monto Vencido</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in overdue_suppliers %}
+                        <tr>
+                            <td>
+                                <strong>{{ supplier.name }}</strong><br>
+                                <small class="text-muted">{{ supplier.tax_id }}</small>
+                            </td>
+                            <td>{{ supplier.phone|default:"-" }}</td>
+                            <td class="text-end">
+                                <strong>₲{{ supplier.get_balance|floatformat:0 }}</strong>
+                            </td>
+                            <td class="text-end text-danger">
+                                <strong>₲{{ supplier.get_overdue_amount|floatformat:0 }}</strong>
+                            </td>
+                            <td>
+                                <a href="{% url 'suppliers:detail' supplier.id %}" class="btn btn-sm btn-outline-primary">
+                                    Ver Detalle
+                                </a>
+                                <a href="{% url 'suppliers:payment_create' %}?supplier_id={{ supplier.id }}" class="btn btn-sm btn-success">
+                                    Pagar
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success">
+        <i class="bi bi-check-circle"></i>
+        <strong>¡Excelente!</strong> No hay proveedores con deuda vencida.
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+function dashboardData() {
+    return {
+        // Datos Alpine.js si necesitas
+    }
+}
+</script>
+{% endblock %}

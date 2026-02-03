@@ -181,6 +181,21 @@ class Sale(TenantAwareModel):
             return self.exchange_rate_brl
         return 1
 
+    def get_total_in_foreign_currency(self):
+        """Get total amount in the foreign currency used for payment"""
+        if self.currency_paid == 'USD':
+            return self.total_amount / self.exchange_rate_usd
+        elif self.currency_paid == 'BRL':
+            return self.total_amount / self.exchange_rate_brl
+        return self.total_amount
+
+    def get_foreign_currency_symbol(self):
+        """Get currency symbol"""
+        if self.currency_paid == 'USD':
+            return '$'
+        elif self.currency_paid == 'BRL':
+            return 'R$'
+        return '₲'
 
 
 class SaleItem(TenantAwareModel):
@@ -249,3 +264,59 @@ class SaleItem(TenantAwareModel):
             self.tax_amount = 0
         
         return self.subtotal
+    
+    
+class CashRegister(models.Model):
+    """Cash register opening/closing."""
+    
+    STATUS_CHOICES = [
+        ('open', 'Abierta'),
+        ('closed', 'Cerrada'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('core.Tenant', on_delete=models.CASCADE)
+    
+    # Opening
+    opened_at = models.DateTimeField(auto_now_add=True)
+    opened_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='cash_registers_opened')
+    
+    initial_amount_pyg = models.DecimalField(max_digits=12, decimal_places=0, default=0)
+    initial_amount_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    initial_amount_brl = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Closing
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True, related_name='cash_registers_closed')
+    
+    expected_amount_pyg = models.DecimalField(max_digits=12, decimal_places=0, default=0)
+    expected_amount_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    expected_amount_brl = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    actual_amount_pyg = models.DecimalField(max_digits=12, decimal_places=0, default=0)
+    actual_amount_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    actual_amount_brl = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    difference_pyg = models.DecimalField(max_digits=12, decimal_places=0, default=0)
+    difference_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    difference_brl = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-opened_at']
+        
+    def __str__(self):
+        return f"Caja {self.opened_at.strftime('%d/%m/%Y %H:%M')} - {self.get_status_display()}"
+    
+    def get_total_sales(self):
+        """Get sales for this cash register period."""
+        sales = Sale.objects.filter(
+            tenant=self.tenant,
+            sale_date__gte=self.opened_at,
+            status='completed'
+        )
+        if self.closed_at:
+            sales = sales.filter(sale_date__lte=self.closed_at)
+        return sales

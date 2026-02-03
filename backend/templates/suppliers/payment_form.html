@@ -1,0 +1,211 @@
+<!-- templates/suppliers/payment_form.html -->
+
+{% extends 'base/base.html' %}
+
+{% block title %}Registrar Pago{% endblock %}
+
+{% block page_title %}Registrar Pago a Proveedor{% endblock %}
+
+{% block mobile_title %}Registrar Pago{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Registrar Pago a Proveedor</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" x-data="paymentFormData()" @submit="validateForm">
+                    {% csrf_token %}
+                    
+                    <!-- Proveedor -->
+                    <div class="mb-3">
+                        <label class="form-label">Proveedor *</label>
+                        <select 
+                            name="supplier_id" 
+                            class="form-select" 
+                            required 
+                            x-model="supplierId"
+                            @change="loadPendingPurchases"
+                        >
+                            <option value="">Seleccionar proveedor...</option>
+                            {% for supplier in suppliers %}
+                            <option 
+                                value="{{ supplier.id }}"
+                                {% if selected_supplier_id == supplier.id|stringformat:"s" %}selected{% endif %}
+                            >
+                                {{ supplier.name }}
+                                {% if supplier.get_balance > 0 %}
+                                - Saldo: ₲{{ supplier.get_balance|floatformat:0 }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Compras Pendientes (si hay) -->
+                    {% if pending_purchases %}
+                    <div class="mb-3">
+                        <label class="form-label">Compra a Pagar (opcional)</label>
+                        <select name="related_purchase_id" class="form-select" x-model="relatedPurchaseId" @change="fillAmount">
+                            <option value="">Pago general (no específico)</option>
+                            {% for purchase in pending_purchases %}
+                            <option 
+                                value="{{ purchase.id }}"
+                                data-amount="{{ purchase.amount }}"
+                                data-invoice="{{ purchase.invoice_number }}"
+                            >
+                                Factura {{ purchase.invoice_number }} - 
+                                Vence: {{ purchase.due_date|date:"d/m/Y" }} - 
+                                ₲{{ purchase.amount|floatformat:0 }}
+                                {% if purchase.is_overdue %}(VENCIDO){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Seleccione si desea pagar una compra específica</small>
+                    </div>
+                    {% endif %}
+
+                    <!-- Monto -->
+                    <div class="mb-3">
+                        <label class="form-label">Monto a Pagar (₲) *</label>
+                        <input 
+                            type="number" 
+                            name="amount" 
+                            class="form-control form-control-lg" 
+                            required 
+                            min="1" 
+                            step="1"
+                            x-model.number="amount"
+                        >
+                    </div>
+
+                    <!-- Método de Pago -->
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago *</label>
+                        <select name="payment_method" class="form-select" required x-model="paymentMethod">
+                            <option value="">Seleccionar método...</option>
+                            <option value="cash">Efectivo</option>
+                            <option value="bank_transfer">Transferencia Bancaria</option>
+                            <option value="check">Cheque</option>
+                            <option value="pix">PIX</option>
+                            <option value="card">Tarjeta</option>
+                        </select>
+                    </div>
+
+                    <!-- Referencia (para transferencias, cheques, etc) -->
+                    <div class="mb-3" x-show="paymentMethod && paymentMethod !== 'cash'">
+                        <label class="form-label">Referencia / Nº Comprobante</label>
+                        <input 
+                            type="text" 
+                            name="reference" 
+                            class="form-control"
+                            placeholder="Nº de transferencia, cheque, etc."
+                        >
+                    </div>
+
+                    <!-- Notas -->
+                    <div class="mb-3">
+                        <label class="form-label">Notas / Observaciones</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <!-- Resumen -->
+                    <div class="alert alert-info" x-show="amount > 0">
+                        <h6>Resumen del Pago</h6>
+                        <p class="mb-1">
+                            <strong>Monto:</strong> 
+                            ₲<span x-text="amount.toLocaleString('es-PY')"></span>
+                        </p>
+                        <p class="mb-0">
+                            <strong>Método:</strong> 
+                            <span x-text="getPaymentMethodName()"></span>
+                        </p>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'suppliers:list' %}" class="btn btn-secondary">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-circle"></i> Registrar Pago
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function paymentFormData() {
+    return {
+        supplierId: '{{ selected_supplier_id|default:"" }}',
+        relatedPurchaseId: '',
+        amount: 0,
+        paymentMethod: '',
+        
+        fillAmount() {
+            if (!this.relatedPurchaseId) return;
+            
+            const select = document.querySelector('select[name="related_purchase_id"]');
+            const option = select.options[select.selectedIndex];
+            
+            if (option && option.dataset.amount) {
+                this.amount = parseFloat(option.dataset.amount);
+            }
+        },
+        
+        getPaymentMethodName() {
+            const methods = {
+                'cash': 'Efectivo',
+                'bank_transfer': 'Transferencia Bancaria',
+                'check': 'Cheque',
+                'pix': 'PIX',
+                'card': 'Tarjeta'
+            };
+            return methods[this.paymentMethod] || '';
+        },
+        
+        loadPendingPurchases() {
+            if (this.supplierId) {
+                // Recargar la página con el supplier_id para mostrar compras pendientes
+                window.location.href = `?supplier_id=${this.supplierId}`;
+            }
+        },
+        
+        validateForm(e) {
+            if (!this.supplierId) {
+                alert('Debe seleccionar un proveedor');
+                e.preventDefault();
+                return false;
+            }
+            if (this.amount <= 0) {
+                alert('El monto debe ser mayor a 0');
+                e.preventDefault();
+                return false;
+            }
+            if (!this.paymentMethod) {
+                alert('Debe seleccionar un método de pago');
+                e.preventDefault();
+                return false;
+            }
+            
+            // Confirmar pago
+            const confirm = window.confirm(
+                `¿Confirmar pago de ₲${this.amount.toLocaleString('es-PY')} por ${this.getPaymentMethodName()}?`
+            );
+            
+            if (!confirm) {
+                e.preventDefault();
+                return false;
+            }
+            
+            return true;
+        }
+    }
+}
+</script>
+{% endblock %}
