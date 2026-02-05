@@ -14,6 +14,7 @@ urlpatterns = [
     path('stock/', include('stock.urls')),
     path('customers/', include('customers.urls')),
     path('suppliers/', include('suppliers.urls')),
+    path('users/', include('users.urls')),
     
     # Autenticación
     path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),

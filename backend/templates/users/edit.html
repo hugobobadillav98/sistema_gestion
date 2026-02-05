@@ -1,0 +1,94 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Editar Usuario{% endblock %}
+{% block page_title %}Editar Usuario: {{ tenant_user.user.username }}{% endblock %}
+{% block mobile_title %}Editar Usuario{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información del Usuario</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Usuario</label>
+                        <input type="text" 
+                               class="form-control" 
+                               value="{{ tenant_user.user.username }}" 
+                               disabled>
+                        <small class="text-muted">El nombre de usuario no se puede cambiar</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">Nombre</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="first_name" 
+                                   name="first_name" 
+                                   value="{{ tenant_user.user.first_name }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">Apellido</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="last_name" 
+                                   name="last_name" 
+                                   value="{{ tenant_user.user.last_name }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" 
+                               class="form-control" 
+                               id="email" 
+                               name="email" 
+                               value="{{ tenant_user.user.email }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Rol</label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="seller" {% if tenant_user.role == 'seller' %}selected{% endif %}>Vendedor</option>
+                            <option value="admin" {% if tenant_user.role == 'admin' %}selected{% endif %}>Administrador</option>
+                            <option value="viewer" {% if tenant_user.role == 'viewer' %}selected{% endif %}>Visor</option>
+                            <option value="owner" {% if tenant_user.role == 'owner' %}selected{% endif %}>Propietario</option>
+                        </select>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6 class="mb-3">Cambiar Contraseña (Opcional)</h6>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">Nueva Contraseña</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="new_password" 
+                               name="new_password"
+                               placeholder="Dejar en blanco para no cambiar">
+                        <small class="text-muted">Solo completar si desea cambiar la contraseña</small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'users:list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

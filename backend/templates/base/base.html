@@ -363,10 +363,13 @@
                 <span class="nav-text">Configuración</span>
             </a>
             
-            <a href="#" class="nav-link" data-tooltip="Usuarios">
-                <i class="bi bi-person-badge"></i>
+            <!-- Usuarios (solo para admin/owner) -->
+            {% if user.tenant_memberships.first.role in 'owner,admin' %}
+            <a href="{% url 'users:list' %}" class="nav-link {% if 'users' in request.path %}active{% endif %}">
+                <i class="bi bi-people"></i>
                 <span class="nav-text">Usuarios</span>
             </a>
+            {% endif %}
             
             <form method="POST" action="{% url 'logout' %}" style="display: inline;">
                 {% csrf_token %}

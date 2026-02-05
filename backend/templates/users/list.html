@@ -1,0 +1,103 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Usuarios{% endblock %}
+{% block page_title %}Gestión de Usuarios{% endblock %}
+{% block mobile_title %}Usuarios{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Usuarios de {{ tenant.name }}</h5>
+    <a href="{% url 'users:create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Nuevo Usuario
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tenant_user in tenant_users %}
+                    <tr>
+                        <td>
+                            <strong>{{ tenant_user.user.username }}</strong>
+                            {% if tenant_user.user == request.user %}
+                            <span class="badge bg-info ms-1">Tú</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ tenant_user.user.first_name }} {{ tenant_user.user.last_name }}
+                            {% if not tenant_user.user.first_name and not tenant_user.user.last_name %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ tenant_user.user.email|default:"-" }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if tenant_user.role == 'owner' %}bg-danger
+                                {% elif tenant_user.role == 'admin' %}bg-primary
+                                {% elif tenant_user.role == 'seller' %}bg-success
+                                {% else %}bg-secondary{% endif %}">
+                                {{ tenant_user.get_role_display }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if tenant_user.is_active %}
+                            <span class="badge bg-success">Activo</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'users:edit' tenant_user.pk %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            
+                            {% if tenant_user.user != request.user %}
+                            <a href="{% url 'users:toggle_active' tenant_user.pk %}" 
+                               class="btn btn-sm btn-outline-{% if tenant_user.is_active %}warning{% else %}success{% endif %}"
+                               onclick="return confirm('¿Está seguro de {% if tenant_user.is_active %}desactivar{% else %}activar{% endif %} este usuario?')"
+                               title="{% if tenant_user.is_active %}Desactivar{% else %}Activar{% endif %}">
+                                <i class="bi bi-{% if tenant_user.is_active %}x-circle{% else %}check-circle{% endif %}"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-people" style="font-size: 2rem;"></i><br>
+                                No hay usuarios registrados
+                            </p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-3">
+    <strong><i class="bi bi-info-circle"></i> Roles:</strong>
+    <ul class="mb-0 mt-2">
+        <li><strong>Owner:</strong> Acceso total al sistema</li>
+        <li><strong>Administrator:</strong> Puede gestionar usuarios y configuración</li>
+        <li><strong>Seller:</strong> Puede realizar ventas y gestionar productos</li>
+        <li><strong>Viewer:</strong> Solo puede ver información</li>
+    </ul>
+</div>
+{% endblock %}
