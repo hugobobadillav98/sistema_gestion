@@ -15,6 +15,9 @@ urlpatterns = [
     path('customers/', include('customers.urls')),
     path('suppliers/', include('suppliers.urls')),
     path('users/', include('users.urls')),
+    path('settings/', core_views.settings_view, name='settings'),
+    path('settings/business/', core_views.business_settings, name='business_settings'),
+    path('settings/exchange-rates/', core_views.exchange_rates, name='exchange_rates'),
     
     # Autenticación
     path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),

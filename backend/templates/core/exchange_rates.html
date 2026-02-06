@@ -1,0 +1,124 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Tasas de Cambio{% endblock %}
+{% block page_title %}Gestión de Tasas de Cambio{% endblock %}
+{% block mobile_title %}Tasas de Cambio{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Tasas de Cambio a Guaraníes (PYG)</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Importante:</strong> Ingrese cuántos guaraníes equivale 1 unidad de cada moneda.
+                </div>
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="rate_USD" class="form-label">
+                            <strong>Dólar Estadounidense (USD)</strong>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">1 USD =</span>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="rate_USD" 
+                                   name="rate_USD" 
+                                   step="0.01"
+                                   value="{{ rates.USD.rate_to_pyg|default:'7200' }}"
+                                   placeholder="7200">
+                            <span class="input-group-text">₲</span>
+                        </div>
+                        <small class="text-muted">Ejemplo: Si 1 USD = ₲7,200</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rate_BRL" class="form-label">
+                            <strong>Real Brasileño (BRL)</strong>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">1 BRL =</span>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="rate_BRL" 
+                                   name="rate_BRL" 
+                                   step="0.01"
+                                   value="{{ rates.BRL.rate_to_pyg|default:'1400' }}"
+                                   placeholder="1400">
+                            <span class="input-group-text">₲</span>
+                        </div>
+                        <small class="text-muted">Ejemplo: Si 1 BRL = ₲1,400</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rate_PYG" class="form-label">
+                            <strong>Guaraní Paraguayo (PYG)</strong>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">1 PYG =</span>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="rate_PYG" 
+                                   name="rate_PYG" 
+                                   step="0.0001"
+                                   value="{{ rates.PYG.rate_to_pyg|default:'1' }}"
+                                   readonly>
+                            <span class="input-group-text">₲</span>
+                        </div>
+                        <small class="text-muted">Siempre es 1 (moneda base)</small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'settings' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Guardar Tasas
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if rates.USD or rates.BRL %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Conversiones Rápidas</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    {% if rates.USD %}
+                    <div class="col-md-4">
+                        <p class="mb-1 text-muted">USD a PYG</p>
+                        <h5>1 USD = ₲{{ rates.USD.rate_to_pyg|floatformat:0 }}</h5>
+                    </div>
+                    {% endif %}
+                    
+                    {% if rates.BRL %}
+                    <div class="col-md-4">
+                        <p class="mb-1 text-muted">BRL a PYG</p>
+                        <h5>1 BRL = ₲{{ rates.BRL.rate_to_pyg|floatformat:0 }}</h5>
+                    </div>
+                    {% endif %}
+                    
+                    {% if rates.USD and rates.BRL %}
+                    <div class="col-md-4">
+                        <p class="mb-1 text-muted">USD a BRL</p>
+                        <h5>1 USD = R$ {{ rates.USD.rate_to_pyg|div:rates.BRL.rate_to_pyg|floatformat:2 }}</h5>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

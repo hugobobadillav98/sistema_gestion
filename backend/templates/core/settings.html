@@ -1,0 +1,153 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Configuración{% endblock %}
+{% block page_title %}Configuración del Sistema{% endblock %}
+{% block mobile_title %}Configuración{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Información del Negocio -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Información del Negocio</h5>
+                {% if user_role in 'owner,admin' %}
+                <a href="{% url 'business_settings' %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Nombre:</th>
+                        <td>{{ tenant.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>RUC:</th>
+                        <td>{{ tenant.tax_id|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Teléfono:</th>
+                        <td>{{ tenant.phone|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ tenant.email|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Dirección:</th>
+                        <td>{{ tenant.address|default:"-" }}</td>
+                    </tr>
+                </table>
+                
+                <hr>
+                
+                <p class="mb-1"><strong>Plan:</strong> 
+                    <span class="badge bg-primary">{{ tenant.get_subscription_plan_display }}</span>
+                </p>
+                <p class="mb-0"><strong>Estado:</strong> 
+                    {% if tenant.is_active %}
+                    <span class="badge bg-success">Activo</span>
+                    {% else %}
+                    <span class="badge bg-danger">Inactivo</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tasas de Cambio -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Tasas de Cambio</h5>
+                {% if user_role in 'owner,admin' %}
+                <a href="{% url 'exchange_rates' %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if exchange_rates %}
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Moneda</th>
+                            <th class="text-end">Tasa a Guaraníes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rate in exchange_rates %}
+                        <tr>
+                            <td>
+                                <strong>{{ rate.get_currency_display }}</strong>
+                                <small class="text-muted">({{ rate.currency }})</small>
+                            </td>
+                            <td class="text-end">
+                                ₲ {{ rate.rate_to_pyg|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <div class="alert alert-info mt-3 mb-0">
+                    <small>
+                        <i class="bi bi-info-circle"></i>
+                        Última actualización: {{ exchange_rates.first.updated_at|date:"d/m/Y H:i" }}
+                    </small>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">
+                    <i class="bi bi-exclamation-triangle"></i><br>
+                    No hay tasas de cambio configuradas
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Otras Opciones -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Configuración Avanzada</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if user.is_staff %}
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Panel de Administración</h6>
+                                <p class="text-muted mb-0 small">
+                                    Acceso al panel de Django Admin
+                                </p>
+                            </div>
+                            <a href="/admin/" class="btn btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right"></i> Abrir
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Información del Usuario</h6>
+                                <p class="text-muted mb-0 small">
+                                    Usuario: <strong>{{ user.username }}</strong><br>
+                                    Rol: <strong>{{ user_role|upper }}</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
