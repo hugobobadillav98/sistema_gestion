@@ -1,0 +1,162 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Pedido {{ order.order_number }}{% endblock %}
+{% block page_title %}Pedido {{ order.order_number }}{% endblock %}
+{% block mobile_title %}Pedido{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+  <div>
+    <h5 class="mb-1">{{ order.customer.name }}</h5>
+    <small class="text-muted">
+      Fecha: {{ order.order_date|date:"d/m/Y" }}
+      {% if order.expected_delivery %}
+      · Entrega esperada: {{ order.expected_delivery|date:"d/m/Y" }}
+      {% endif %}
+    </small>
+    {% if order.quote %}
+    <br>
+    <small class="text-muted">
+      <i class="bi bi-file-earmark-text"></i> 
+      Creado desde presupuesto 
+      <a href="{% url 'quotes:detail' order.quote.pk %}">{{ order.quote.quote_number }}</a>
+    </small>
+    {% endif %}
+  </div>
+  <div class="text-end">
+    <span class="badge
+      {% if order.status == 'pending' %}bg-warning text-dark
+      {% elif order.status == 'in_progress' %}bg-info
+      {% elif order.status == 'completed' %}bg-success
+      {% elif order.status == 'cancelled' %}bg-danger
+      {% else %}bg-secondary{% endif %}">
+      {{ order.get_status_display }}
+    </span>
+    <div class="mt-2">
+      <a href="{% url 'orders:list' %}" class="btn btn-sm btn-outline-secondary">
+        Volver
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Botones de acciones según estado -->
+{% if order.status == 'pending' %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center mb-3">
+  <span><i class="bi bi-clock"></i> Pedido pendiente de procesar</span>
+  <div>
+    <a href="{% url 'orders:mark_in_progress' order.pk %}" class="btn btn-sm btn-info me-2">
+      <i class="bi bi-play-circle"></i> Iniciar Proceso
+    </a>
+    <a href="{% url 'orders:cancel' order.pk %}" class="btn btn-sm btn-danger" 
+       onclick="return confirm('¿Está seguro de cancelar este pedido?')">
+      <i class="bi bi-x-circle"></i> Cancelar
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% if order.status == 'in_progress' %}
+<div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+  <span><i class="bi bi-arrow-repeat"></i> Pedido en proceso</span>
+  <div>
+    <a href="{% url 'orders:mark_completed' order.pk %}" class="btn btn-sm btn-success me-2">
+      <i class="bi bi-check-circle"></i> Marcar Completado
+    </a>
+    <a href="{% url 'orders:cancel' order.pk %}" class="btn btn-sm btn-danger"
+       onclick="return confirm('¿Está seguro de cancelar este pedido?')">
+      <i class="bi bi-x-circle"></i> Cancelar
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% if order.status == 'completed' %}
+  {% if order.has_sale %}
+  <div class="alert alert-success mb-3">
+    <i class="bi bi-check-circle-fill"></i> Pedido completado y venta generada.
+    <a href="{% url 'sales:sale_detail' order.sales.first.pk %}" class="btn btn-sm btn-outline-success ms-2">
+      Ver Venta {{ order.sales.first.invoice_number }}
+    </a>
+  </div>
+  {% else %}
+  <div class="alert alert-success d-flex justify-content-between align-items-center mb-3">
+    <span><i class="bi bi-check-circle-fill"></i> Pedido completado</span>
+    <a href="{% url 'orders:generate_sale' order.pk %}" class="btn btn-sm btn-success">
+      <i class="bi bi-cash-coin"></i> Generar Venta
+    </a>
+  </div>
+  {% endif %}
+{% endif %}
+
+{% if order.status == 'cancelled' %}
+<div class="alert alert-danger mb-3">
+  <i class="bi bi-x-circle-fill"></i> Este pedido fue cancelado.
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Producto</th>
+            <th class="text-end">Cant.</th>
+            <th class="text-end">Precio (c/IVA)</th>
+            <th class="text-end">Base</th>
+            <th class="text-end">IVA</th>
+            <th class="text-end">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ item.product.name }}</td>
+            <td class="text-end">{{ item.quantity }}</td>
+            <td class="text-end">₲ {{ item.unit_price|floatformat:0 }}</td>
+            <td class="text-end">₲ {{ item.base_amount|floatformat:0 }}</td>
+            <td class="text-end">₲ {{ item.tax_amount|floatformat:0 }}</td>
+            <td class="text-end">₲ {{ item.total|floatformat:0 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-3 text-muted">
+              Sin productos.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">Subtotal:</th>
+            <th class="text-end">₲ {{ order.subtotal|floatformat:0 }}</th>
+          </tr>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">IVA:</th>
+            <th class="text-end">₲ {{ order.total_tax|floatformat:0 }}</th>
+          </tr>
+          <tr>
+            <th colspan="4"></th>
+            <th class="text-end">Total:</th>
+            <th class="text-end">₲ {{ order.total|floatformat:0 }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if order.notes %}
+<div class="card mb-3">
+  <div class="card-header">
+    <strong>Observaciones</strong>
+  </div>
+  <div class="card-body">
+    {{ order.notes|linebreaks }}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

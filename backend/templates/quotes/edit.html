@@ -1,0 +1,177 @@
+{% extends 'base/base.html' %}
+
+
+{% block title %}Editar Presupuesto {{ quote.quote_number }}{% endblock %}
+{% block page_title %}Editar Presupuesto {{ quote.quote_number }}{% endblock %}
+{% block mobile_title %}Editar Presupuesto{% endblock %}
+
+
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+  <div>
+    <h5 class="mb-1">
+      {% if quote.customer %}
+        {{ quote.customer.name }}
+      {% else %}
+        <span class="text-muted">Cliente General</span>
+      {% endif %}
+    </h5>
+    <small class="text-muted">
+      Emisión: {{ quote.issue_date|date:"d/m/Y" }} ·
+      Válido hasta: {{ quote.valid_until|date:"d/m/Y" }}
+    </small>
+  </div>
+  <div class="text-end">
+    <a href="{% url 'quotes:detail' quote.pk %}" class="btn btn-sm btn-outline-secondary">
+      Ver PDF / Detalle
+    </a>
+    <a href="{% url 'quotes:list' %}" class="btn btn-sm btn-outline-secondary">
+      Volver
+    </a>
+  </div>
+</div>
+
+
+<div class="row">
+  <!-- Tabla de items -->
+  <div class="col-lg-8 mb-3">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Productos del Presupuesto</h6>
+        <small class="text-muted">Edite cantidades o precios; 0 borra el ítem.</small>
+      </div>
+      <div class="card-body p-0">
+        <!-- FORM ÚNICO PARA GUARDAR / ELIMINAR ITEMS -->
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_items" id="items-action">
+          <input type="hidden" name="item_id" id="delete-item-id">
+
+
+          <div class="table-responsive">
+            <table class="table mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Producto</th>
+                  <th class="text-end">Cant.</th>
+                  <th class="text-end">Precio (c/IVA)</th>
+                  <th class="text-end">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in items %}
+                <tr>
+                  <td>{{ item.product.name }}</td>
+                  <td class="text-end" style="width: 90px;">
+                    <input type="number"
+                           step="0.01"
+                           name="qty_{{ item.id }}"
+                           value="{{ item.quantity }}"
+                           class="form-control form-control-sm text-end">
+                  </td>
+                  <td class="text-end" style="width: 120px;">
+                    <input type="number"
+                           step="1"
+                           name="price_{{ item.id }}"
+                           value="{{ item.unit_price|floatformat:0 }}"
+                           class="form-control form-control-sm text-end">
+                  </td>
+                  <td class="text-end">₲ {{ item.total|floatformat:0 }}</td>
+                  <td class="text-end">
+                    <button type="submit"
+                            class="btn btn-sm btn-outline-danger"
+                            onclick="if(!confirm('¿Eliminar este ítem?')) return false;
+                                     document.getElementById('items-action').value='delete_item';
+                                     document.getElementById('delete-item-id').value='{{ item.id }}';">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center py-3 text-muted">
+                    Aún no hay productos en este presupuesto.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="3" class="text-end">Subtotal:</th>
+                  <th class="text-end">₲ {{ quote.subtotal|floatformat:0 }}</th>
+                  <th></th>
+                </tr>
+                <tr>
+                  <th colspan="3" class="text-end">IVA:</th>
+                  <th class="text-end">₲ {{ quote.total_tax|floatformat:0 }}</th>
+                  <th></th>
+                </tr>
+                <tr>
+                  <th colspan="3" class="text-end">Total:</th>
+                  <th class="text-end">₲ {{ quote.total|floatformat:0 }}</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+
+          <div class="p-3 text-end">
+            <button type="submit" class="btn btn-primary btn-sm"
+                    onclick="document.getElementById('items-action').value='save_items';">
+              <i class="bi bi-save"></i> Guardar cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Agregar nuevo producto -->
+  <div class="col-lg-4 mb-3">
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Agregar producto</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_item">
+          
+          <div class="mb-3">
+            <label class="form-label">Producto</label>
+            <select name="product_id" class="form-select" required>
+              <option value="">-- Seleccione --</option>
+              {% for p in products %}
+              <option value="{{ p.id }}">
+                {{ p.code }} - {{ p.name }} (₲ {{ p.sale_price|floatformat:0 }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Cantidad</label>
+            <input type="number" name="quantity" step="1" class="form-control" value="1">
+          </div>
+
+
+          <div class="mb-3">
+            <label class="form-label">Precio unitario (opcional)</label>
+            <input type="number" name="unit_price" step="1" class="form-control"
+                   placeholder="Dejar vacío para usar precio del producto">
+          </div>
+          
+          <div class="d-grid">
+            <button type="submit" class="btn btn-success btn-sm">
+              <i class="bi bi-plus-circle"></i> Agregar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

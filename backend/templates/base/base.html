@@ -355,10 +355,24 @@
                 <span class="nav-text">Proveedores</span>
             </a>
 
+            <!-- Presupuestos -->
+            <a href="{% url 'quotes:list' %}" class="nav-link {% if 'quotes' in request.path %}active{% endif %}">
+                <i class="bi bi-file-earmark-text"></i>
+                <span class="nav-text">Presupuestos</span>
+            </a>
+
+            <!-- Pedidos -->
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'orders:list' %}">
+                    <i class="bi bi-cart"></i> Pedidos
+                </a>
+            </li>
+
             <!-- Separador -->
             <div class="menu-divider">Sistema</div>
             
-            <a href="{% url 'admin:index' %}" class="nav-link" data-tooltip="Administración">
+            <!-- Configuración -->
+            <a href="{% url 'settings' %}" class="nav-link {% if 'settings' in request.path %}active{% endif %}">
                 <i class="bi bi-gear"></i>
                 <span class="nav-text">Configuración</span>
             </a>

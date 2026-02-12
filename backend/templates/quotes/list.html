@@ -1,0 +1,75 @@
+{% extends 'base/base.html' %}
+
+
+{% block title %}Presupuestos{% endblock %}
+{% block page_title %}Presupuestos{% endblock %}
+{% block mobile_title %}Presupuestos{% endblock %}
+
+
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+  <h5 class="mb-0">Presupuestos de {{ tenant.name }}</h5>
+  <a href="{% url 'quotes:create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Nuevo Presupuesto
+  </a>
+</div>
+
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Número</th>
+            <th>Cliente</th>
+            <th>Fecha</th>
+            <th>Vence</th>
+            <th>Estado</th>
+            <th class="text-end">Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for q in quotes %}
+          <tr>
+            <td>{{ q.quote_number }}</td>
+            <td>
+              {% if q.customer %}
+                {{ q.customer.name }}
+              {% else %}
+                <span class="text-muted">Cliente General</span>
+              {% endif %}
+            </td>
+            <td>{{ q.issue_date|date:"d/m/Y" }}</td>
+            <td>{{ q.valid_until|date:"d/m/Y" }}</td>
+            <td>
+              <span class="badge
+                {% if q.status == 'draft' %}bg-secondary
+                {% elif q.status == 'sent' %}bg-info
+                {% elif q.status == 'approved' %}bg-success
+                {% elif q.status == 'rejected' %}bg-danger
+                {% else %}bg-warning{% endif %}">
+                {{ q.get_status_display }}
+              </span>
+            </td>
+            <td class="text-end">₲ {{ q.total|floatformat:0 }}</td>
+            <td class="text-end">
+              <a href="{% url 'quotes:detail' q.pk %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">
+              No hay presupuestos aún.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

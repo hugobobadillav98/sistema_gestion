@@ -24,16 +24,32 @@ class Category(TenantAwareModel):
         return self.name
 
 
+from decimal import Decimal
+
 class Product(TenantAwareModel):  # Heredar de TenantAwareModel
     """Product model with Paraguay tax support"""
     code = models.CharField(max_length=50)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products'
+    )
     
     # Precios (CON IVA incluido - estándar Paraguay)
-    sale_price = models.DecimalField(max_digits=10, decimal_places=0, help_text="Precio con IVA incluido")
-    purchase_price = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    sale_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        help_text="Precio con IVA incluido"
+    )
+    purchase_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        default=0
+    )
     
     # Tipo de IVA (Paraguay)
     TAX_CHOICES = [
@@ -41,7 +57,12 @@ class Product(TenantAwareModel):  # Heredar de TenantAwareModel
         ('5', 'Gravada 5%'),
         ('10', 'Gravada 10%'),
     ]
-    tax_type = models.CharField(max_length=10, choices=TAX_CHOICES, default='10', help_text="Tipo de IVA")
+    tax_type = models.CharField(
+        max_length=10,
+        choices=TAX_CHOICES,
+        default='10',
+        help_text="Tipo de IVA"
+    )
     
     # Stock
     current_stock = models.IntegerField(default=0)
@@ -53,26 +74,39 @@ class Product(TenantAwareModel):  # Heredar de TenantAwareModel
     updated_at = models.DateTimeField(auto_now=True)
 
     # Métodos para cálculo de IVA (Paraguay)
-    def get_tax_rate(self):
-        """Retorna la tasa de IVA como decimal"""
-        rates = {'EXENTA': Decimal('0'), '5': Decimal('0.05'), '10': Decimal('0.10')}
+    def get_tax_rate(self) -> Decimal:
+        """Retorna la tasa de IVA como decimal (0, 0.05, 0.10)."""
+        rates = {
+            'EXENTA': Decimal('0'),
+            '5': Decimal('0.05'),
+            '10': Decimal('0.10'),
+        }
         return rates.get(self.tax_type, Decimal('0.10'))
     
-    def get_base_price(self):
-        """Calcula precio base (sin IVA) desde precio con IVA"""
-        tax_rate = self.get_tax_rate()
-        if tax_rate == 0:
-            return self.sale_price
-        return (self.sale_price / (1 + tax_rate)).quantize(Decimal('1'))
-    
-    def get_tax_amount(self):
-        """Calcula el monto del IVA"""
-        return (self.sale_price - self.get_base_price()).quantize(Decimal('1'))
-    
-    def get_tax_percentage(self):
-        """Retorna el porcentaje como número entero"""
+    def get_tax_percentage(self) -> int:
+        """Retorna el porcentaje como número entero (0, 5, 10)."""
         rates = {'EXENTA': 0, '5': 5, '10': 10}
         return rates.get(self.tax_type, 10)
+    
+    def get_base_price(self) -> Decimal:
+        """Calcula precio base (sin IVA) desde precio con IVA."""
+        tax_rate = self.get_tax_rate()
+        if tax_rate == 0:
+            return Decimal(self.sale_price)
+        return (Decimal(self.sale_price) / (Decimal('1') + tax_rate)).quantize(Decimal('1'))
+    
+    def get_tax_amount(self) -> Decimal:
+        """Calcula el monto del IVA (precio con IVA - base)."""
+        return (Decimal(self.sale_price) - self.get_base_price()).quantize(Decimal('1'))
+
+    # Helper para presupuestos/pedidos
+    @property
+    def default_unit_price_for_quotes(self) -> Decimal:
+        """
+        Precio unitario sugerido para presupuestos/pedidos.
+        Usamos el sale_price (con IVA incluido).
+        """
+        return Decimal(self.sale_price)
 
     class Meta:
         db_table = 'stock_product'
@@ -83,6 +117,7 @@ class Product(TenantAwareModel):  # Heredar de TenantAwareModel
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
 
 
 class StockMovement(TenantAwareModel):

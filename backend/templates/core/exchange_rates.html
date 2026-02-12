@@ -96,23 +96,16 @@
             <div class="card-body">
                 <div class="row text-center">
                     {% if rates.USD %}
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <p class="mb-1 text-muted">USD a PYG</p>
                         <h5>1 USD = ₲{{ rates.USD.rate_to_pyg|floatformat:0 }}</h5>
                     </div>
                     {% endif %}
                     
                     {% if rates.BRL %}
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <p class="mb-1 text-muted">BRL a PYG</p>
                         <h5>1 BRL = ₲{{ rates.BRL.rate_to_pyg|floatformat:0 }}</h5>
-                    </div>
-                    {% endif %}
-                    
-                    {% if rates.USD and rates.BRL %}
-                    <div class="col-md-4">
-                        <p class="mb-1 text-muted">USD a BRL</p>
-                        <h5>1 USD = R$ {{ rates.USD.rate_to_pyg|div:rates.BRL.rate_to_pyg|floatformat:2 }}</h5>
                     </div>
                     {% endif %}
                 </div>

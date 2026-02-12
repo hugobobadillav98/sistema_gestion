@@ -25,6 +25,15 @@ class Sale(TenantAwareModel):
         null=True,
         blank=True
     )
+
+    order = models.ForeignKey(
+        'orders.Order',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales',
+        verbose_name='Pedido Origen'
+    )
     
     # Sale details
     sale_date = models.DateTimeField(auto_now_add=True)
