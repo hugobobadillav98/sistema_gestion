@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import uuid
 
 
+
 class Sale(TenantAwareModel):
     """
     Main sales transaction with multi-currency support.
@@ -25,6 +26,7 @@ class Sale(TenantAwareModel):
         null=True,
         blank=True
     )
+
 
     order = models.ForeignKey(
         'orders.Order',
@@ -190,6 +192,7 @@ class Sale(TenantAwareModel):
             return self.exchange_rate_brl
         return 1
 
+
     def get_total_in_foreign_currency(self):
         """Get total amount in the foreign currency used for payment"""
         if self.currency_paid == 'USD':
@@ -198,6 +201,7 @@ class Sale(TenantAwareModel):
             return self.total_amount / self.exchange_rate_brl
         return self.total_amount
 
+
     def get_foreign_currency_symbol(self):
         """Get currency symbol"""
         if self.currency_paid == 'USD':
@@ -205,6 +209,32 @@ class Sale(TenantAwareModel):
         elif self.currency_paid == 'BRL':
             return 'R$'
         return '₲'
+
+    # Métodos para mostrar en la tabla de 3 columnas
+    def get_total_in_usd(self):
+        """Convertir total a dólares"""
+        return self.total_amount / self.exchange_rate_usd
+
+    def get_total_in_brl(self):
+        """Convertir total a reales"""
+        return self.total_amount / self.exchange_rate_brl
+
+    def get_paid_in_usd(self):
+        """Convertir monto pagado a dólares"""
+        return self.paid_amount / self.exchange_rate_usd
+
+    def get_paid_in_brl(self):
+        """Convertir monto pagado a reales"""
+        return self.paid_amount / self.exchange_rate_brl
+
+    def get_change_in_usd(self):
+        """Convertir vuelto a dólares"""
+        return self.change_amount / self.exchange_rate_usd
+
+    def get_change_in_brl(self):
+        """Convertir vuelto a reales"""
+        return self.change_amount / self.exchange_rate_brl
+
 
 
 class SaleItem(TenantAwareModel):

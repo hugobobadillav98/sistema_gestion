@@ -1,8 +1,12 @@
 {% extends 'base/base.html' %}
 
+
+
 {% block title %}Venta {{ sale.invoice_number }}{% endblock %}
 {% block page_title %}Detalle de Venta{% endblock %}
 {% block mobile_title %}Venta {{ sale.invoice_number }}{% endblock %}
+
+
 
 {% block content %}
 <div class="row">
@@ -34,23 +38,11 @@
                     <div class="col-md-6">
                         <p><strong>Método de Pago:</strong> {{ sale.get_payment_method_display }}</p>
 
-                        {% if sale.currency_paid != 'PYG' %}
-                        <p><strong>Moneda de Pago:</strong> 
-                            {{ sale.get_currency_paid_display }}
-                            <br><small class="text-muted">
-                                Total: {{ sale.get_foreign_currency_symbol }} {{ sale.get_total_in_foreign_currency|floatformat:2 }}
-                                (₲ {{ sale.total_amount|floatformat:0 }})
-                                <br>Tasa: 1 {{ sale.currency_paid }} = ₲ {{ sale.get_exchange_rate_used|floatformat:0 }}
-                                {% if sale.paid_amount_original %}
-                                    <br>Pagó: {{ sale.get_foreign_currency_symbol }} {{ sale.paid_amount_original|floatformat:2 }}
-                                {% endif %}
-                            </small>
-                        </p>
-                        {% endif %}
 
                         {% if sale.payment_method == 'pix' and sale.pix_reference %}
                         <p><strong>Ref. PIX:</strong> <code>{{ sale.pix_reference }}</code></p>
                         {% endif %}
+                        
                         <p><strong>Estado:</strong> 
                             {% if sale.status == 'completed' %}
                             <span class="badge bg-success">{{ sale.get_status_display }}</span>
@@ -60,6 +52,7 @@
                             <span class="badge bg-danger">{{ sale.get_status_display }}</span>
                             {% endif %}
                         </p>
+                        
                         {% if sale.notes %}
                         <p><strong>Notas:</strong><br>{{ sale.notes }}</p>
                         {% endif %}
@@ -67,6 +60,8 @@
                 </div>
             </div>
         </div>
+
+
 
         <!-- Items de la venta -->
         <div class="card mb-3">
@@ -114,11 +109,13 @@
             </div>
         </div>
 
+
+
         <!-- Totales -->
         <div class="card">
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6 offset-md-6">
+                    <div class="col-md-8 offset-md-2">
                         <table class="table table-sm">
                             <tr>
                                 <td><strong>Subtotal:</strong></td>
@@ -138,19 +135,80 @@
                                 <td><h5 class="mb-0">TOTAL:</h5></td>
                                 <td class="text-end"><h5 class="mb-0">₲ {{ sale.total_amount|floatformat:0 }}</h5></td>
                             </tr>
-                            <tr>
-                                <td><strong>Pagado:</strong></td>
-                                <td class="text-end">₲ {{ sale.paid_amount|floatformat:0 }}</td>
-                            </tr>
-                            {% if sale.change_amount > 0 %}
-                            <tr>
-                                <td><strong>Vuelto:</strong></td>
-                                <td class="text-end text-success">₲ {{ sale.change_amount|floatformat:0 }}</td>
-                            </tr>
-                            {% endif %}
+                        </table>
+
+
+                        <!-- Tabla de equivalencias (3 columnas) -->
+                        <table class="table table-sm table-bordered text-center mt-3">
+                            <thead class="table-light">
+                                <tr>
+                                    <th></th>
+                                    <th>DÓLARES</th>
+                                    <th>GUARANÍES</th>
+                                    <th>REALES</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-start"><strong>Total:</strong></td>
+                                    <td>$ {{ sale.get_total_in_usd|floatformat:2 }}</td>
+                                    <td>₲ {{ sale.total_amount|floatformat:0 }}</td>
+                                    <td>R$ {{ sale.get_total_in_brl|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start"><strong>Pagado:</strong></td>
+                                    <td>
+                                        {% if sale.currency_paid == 'USD' and sale.paid_amount_original > 0 %}
+                                        $ {{ sale.paid_amount_original|floatformat:2 }}
+                                        {% else %}
+                                        $ 0,00
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if sale.currency_paid == 'PYG' %}
+                                        ₲ {{ sale.paid_amount|floatformat:0 }}
+                                        {% else %}
+                                        ₲ 0
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if sale.currency_paid == 'BRL' and sale.paid_amount_original > 0 %}
+                                        R$ {{ sale.paid_amount_original|floatformat:2 }}
+                                        {% else %}
+                                        R$ 0,00
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start"><strong>Vuelto:</strong></td>
+                                    <td>
+                                        {% if sale.currency_paid == 'USD' and sale.change_amount > 0 %}
+                                        $ {{ sale.get_change_in_usd|floatformat:2 }}
+                                        {% else %}
+                                        $ 0,00
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if sale.currency_paid == 'PYG' and sale.change_amount > 0 %}
+                                        ₲ {{ sale.change_amount|floatformat:0 }}
+                                        {% else %}
+                                        ₲ 0
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if sale.currency_paid == 'BRL' and sale.change_amount > 0 %}
+                                        R$ {{ sale.get_change_in_brl|floatformat:2 }}
+                                        {% else %}
+                                        R$ 0,00
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
+
+
 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                     <a href="{% url 'sales:sales_list' %}" class="btn btn-secondary">
@@ -168,6 +226,8 @@
     </div>
 </div>
 
+
+
 <style>
 @media print {
     .btn, .topbar, .sidebar-fixed, .navbar, .card-header .badge {
@@ -179,6 +239,13 @@
     .card {
         border: 1px solid #000 !important;
         page-break-inside: avoid;
+    }
+    .table-bordered {
+        border: 2px solid #000 !important;
+    }
+    .table-bordered th,
+    .table-bordered td {
+        border: 1px solid #000 !important;
     }
 }
 </style>

@@ -510,11 +510,16 @@ function posData() {
         },
         
         updatePaymentUI() {
-            if (this.paymentMethod === 'pix' || this.paymentMethod === 'card' || 
-                this.paymentMethod === 'transfer') {
-                // Pagos digitales: monto exacto, sin vuelto
+            if (this.paymentMethod === 'card' || this.paymentMethod === 'transfer') {
+                // Pagos digitales (tarjeta/transferencia): siempre PYG, monto exacto
                 this.currencyPaid = 'PYG';
                 this.paidAmount = this.total;
+                this.change = 0;
+                this.changePYG = 0;
+            } else if (this.paymentMethod === 'pix') {
+                // PIX: mantener la moneda seleccionada, monto exacto en esa moneda
+                // NO cambiar currencyPaid aquí
+                this.paidAmount = this.getConvertedTotal();
                 this.change = 0;
                 this.changePYG = 0;
             } else if (this.paymentMethod === 'credit') {
@@ -523,9 +528,35 @@ function posData() {
                 this.paidAmount = 0;
                 this.change = 0;
                 this.changePYG = 0;
+            } else if (this.paymentMethod === 'cash') {
+                // Efectivo: mantener la moneda seleccionada
+                // Usuario debe ingresar el monto manualmente
+                this.paidAmount = 0;
+                this.change = 0;
+                this.changePYG = 0;
             }
             this.updateTotals();
         },
+
+        calculateChange() {
+            // Solo calcular vuelto para efectivo
+            if (this.paymentMethod !== 'cash') {
+                this.change = 0;
+                this.changePYG = 0;
+                return;
+            }
+            
+            const totalInCurrency = this.getConvertedTotal();
+            
+            if (this.paidAmount >= totalInCurrency) {
+                this.change = this.paidAmount - totalInCurrency;
+                this.changePYG = this.change * this.exchangeRates[this.currencyPaid];
+            } else {
+                this.change = 0;
+                this.changePYG = 0;
+            }
+        },
+
         
         calculateChange() {
             // Solo calcular vuelto para efectivo
@@ -592,7 +623,20 @@ function posData() {
             // Payment data
             this.addInput(form, 'payment_method', this.paymentMethod);
             this.addInput(form, 'currency_paid', this.currencyPaid);
-            this.addInput(form, 'paid_amount_original', this.paidAmount);
+            
+            // Total en PYG
+            this.addInput(form, 'total_pyg', this.total);
+            
+            // Montos pagados según moneda
+            if (this.currencyPaid === 'PYG') {
+                this.addInput(form, 'paid_amount_pyg', this.paidAmount);
+            } else if (this.currencyPaid === 'USD') {
+                this.addInput(form, 'paid_amount_usd', this.paidAmount);
+            } else if (this.currencyPaid === 'BRL') {
+                this.addInput(form, 'paid_amount_brl', this.paidAmount);
+            }
+            
+            // Tasas de cambio
             this.addInput(form, 'exchange_rate_usd', this.exchangeRates.USD);
             this.addInput(form, 'exchange_rate_brl', this.exchangeRates.BRL);
             

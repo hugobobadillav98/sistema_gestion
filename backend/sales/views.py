@@ -97,30 +97,12 @@ def create_sale(request):
         customer_id = request.POST.get('customer_id')
         payment_method = request.POST.get('payment_method', 'cash')
         currency_paid = request.POST.get('currency_paid', 'PYG')
-        paid_amount_original = Decimal(request.POST.get('paid_amount_original', '0'))
         exchange_rate_usd = Decimal(request.POST.get('exchange_rate_usd', '7300'))
         exchange_rate_brl = Decimal(request.POST.get('exchange_rate_brl', '1450'))
         pix_reference = request.POST.get('pix_reference', '')
         notes = request.POST.get('notes', '')
         
-        # Calculate paid amount in PYG
-        if currency_paid == 'PYG':
-            paid_amount = paid_amount_original
-        elif currency_paid == 'USD':
-            paid_amount = paid_amount_original * exchange_rate_usd
-        elif currency_paid == 'BRL':
-            paid_amount = paid_amount_original * exchange_rate_brl
-        else:
-            paid_amount = paid_amount_original
-        
-        print(f"Currency: {currency_paid}, Paid Original: {paid_amount_original}, Paid PYG: {paid_amount}")
-        
-        # Get customer if provided
-        customer = None
-        if customer_id:
-            customer = Customer.objects.get(id=customer_id, tenant=request.tenant)
-        
-        # Parse items from POST data
+        # Parse items from POST data PRIMERO (necesitamos calcular el total)
         items_data = []
         product_ids = request.POST.getlist('product_id[]')
         quantities = request.POST.getlist('quantity[]')
@@ -144,6 +126,40 @@ def create_sale(request):
         
         print(f"Items data: {items_data}")
         
+        # Calcular total de la venta (en PYG)
+        total_pyg = Decimal(request.POST.get('total_pyg', '0'))
+        
+        # Determinar paid_amount_original según la moneda
+        if currency_paid == 'PYG':
+            # Si paga en guaraníes, el monto original es en guaraníes
+            paid_amount_pyg = Decimal(request.POST.get('paid_amount_pyg', '0'))
+            paid_amount_original = paid_amount_pyg
+            paid_amount = paid_amount_pyg
+        elif currency_paid == 'USD':
+            # Si paga en dólares, convertir el total a USD
+            total_usd = total_pyg / exchange_rate_usd
+            paid_amount_usd = Decimal(request.POST.get('paid_amount_usd', str(total_usd)))
+            paid_amount_original = paid_amount_usd  # Guardar en USD
+            paid_amount = paid_amount_usd * exchange_rate_usd  # Convertir a PYG
+        elif currency_paid == 'BRL':
+            # Si paga en reales, convertir el total a BRL
+            total_brl = total_pyg / exchange_rate_brl
+            paid_amount_brl = Decimal(request.POST.get('paid_amount_brl', str(total_brl)))
+            paid_amount_original = paid_amount_brl  # Guardar en BRL
+            paid_amount = paid_amount_brl * exchange_rate_brl  # Convertir a PYG
+        else:
+            paid_amount_original = Decimal('0')
+            paid_amount = Decimal('0')
+        
+        print(f"Currency: {currency_paid}")
+        print(f"Paid Original: {paid_amount_original} {currency_paid}")
+        print(f"Paid PYG: {paid_amount}")
+        
+        # Get customer if provided
+        customer = None
+        if customer_id:
+            customer = Customer.objects.get(id=customer_id, tenant=request.tenant)
+        
         # Create sale using service
         sale = SaleService.create_sale(
             tenant=request.tenant,
@@ -164,6 +180,14 @@ def create_sale(request):
         
         messages.success(request, f"Venta {sale.invoice_number} registrada exitosamente!")
         return redirect('sales:sale_detail', pk=sale.pk)
+        
+    except Exception as e:
+        print(f"❌ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        messages.error(request, f"Error al crear venta: {str(e)}")
+        return redirect('sales:pos')
+
         
     except Exception as e:
         print(f"❌ ERROR: {str(e)}")
